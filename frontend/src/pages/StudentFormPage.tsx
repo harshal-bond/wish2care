@@ -210,7 +210,7 @@ export function StudentFormPage() {
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.15 }}
             >
-              <Card className="border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden p-6 md:p-8">
+              <Card className="border-gray-100 bg-white shadow-sm rounded-2xl p-6 md:p-8">
                 {/* Step 1: Student Details */}
                 {activeStep === 1 && (
                   <div className="space-y-6">
