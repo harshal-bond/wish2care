@@ -1,3 +1,3 @@
-export * from './schemas.ts';
-export * from './types.ts';
-export * from './constants.ts';
+export * from './schemas';
+export * from './types';
+export * from './constants';
