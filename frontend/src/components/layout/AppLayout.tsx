@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../lib/utils';
-import { LayoutDashboard, Users, Download, LogOut, Menu, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, Download, LogOut, Menu, ShieldAlert, Building2 } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,7 +13,12 @@ export function AppLayout() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Students', href: '/students', icon: Users },
-    ...(user?.role === 'admin' ? [{ name: 'Export Data', href: '/export', icon: Download }] : []),
+    ...(user?.role === 'admin'
+      ? [
+          { name: 'Schools', href: '/schools', icon: Building2 },
+          { name: 'Export Data', href: '/export', icon: Download },
+        ]
+      : []),
   ];
 
   return (

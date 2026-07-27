@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { StudentFormPage } from './pages/StudentFormPage';
 import { ExportPage } from './pages/ExportPage';
+import { SchoolsPage } from './pages/SchoolsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +42,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/students" element={<StudentsPage />} />
               <Route path="/students/:id" element={<StudentFormPage />} />
+              <Route path="/schools" element={<ProtectedRoute requireAdmin><SchoolsPage /></ProtectedRoute>} />
               <Route path="/export" element={<ProtectedRoute requireAdmin><ExportPage /></ProtectedRoute>} />
             </Route>
           </Routes>

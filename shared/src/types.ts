@@ -4,6 +4,7 @@ import type {
   registerWorkerSchema,
   studentSchema,
   studentUploadRowSchema,
+  studentSchoolUploadRowSchema,
   healthRecordSchema,
   healthRecordPartialSchema,
   exportRequestSchema,
@@ -15,6 +16,13 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterWorkerInput = z.infer<typeof registerWorkerSchema>;
 export type StudentInput = z.infer<typeof studentSchema>;
 export type StudentUploadRow = z.infer<typeof studentUploadRowSchema>;
+export type StudentSchoolUploadRow = z.infer<typeof studentSchoolUploadRowSchema>;
+
+export interface StudentUploadResult {
+  imported: number;
+  skipped: number;
+  errors: Array<{ row: number; message: string }>;
+}
 export type HealthRecordInput = z.infer<typeof healthRecordSchema>;
 export type HealthRecordPartial = z.infer<typeof healthRecordPartialSchema>;
 export type ExportRequest = z.infer<typeof exportRequestSchema>;
