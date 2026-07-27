@@ -64,6 +64,14 @@ export const studentUploadRowSchema = z.object({
   gender: z.string().transform((v) => v.toUpperCase().charAt(0) as 'M' | 'F'),
 });
 
+/** Row schema for bulk upload tied to a specific school (school comes from URL, not the sheet). */
+export const studentSchoolUploadRowSchema = z.object({
+  studentCode: z.string().optional().nullable(),
+  name: z.string().min(1, 'Student name is required'),
+  age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
+  gender: z.string().transform((v) => v.toUpperCase().charAt(0) as 'M' | 'F'),
+});
+
 // ── Health record schema ───────────────────────────────────────────────
 // These are the 26 raw input fields from the Excel workbook
 export const healthRecordSchema = z.object({
