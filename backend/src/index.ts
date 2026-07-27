@@ -59,3 +59,15 @@ serve({
   fetch: app.fetch,
   port,
 });
+
+app.get("/", (c) => {
+  return c.text("BACKEND VERSION 2");
+});
+
+app.get("/api/health", (c) =>
+  c.json({
+    status: "ok",
+    version: "2",
+    time: new Date().toISOString(),
+  })
+);
