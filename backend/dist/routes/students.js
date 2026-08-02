@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
-import { students, healthRecords, schools } from '../db/schema.js';
-import { authMiddleware } from '../middleware/auth.js';
-import { studentSchema, isRecordComplete, countCompletedDomains } from '@wish2care/shared';
-import { eq, like, or, and } from 'drizzle-orm';
+import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
+import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { studentSchema, studentMentalHealthSchema, isRecordComplete, countCompletedDomains } from '@wish2care/shared';
+import { eq, like, or, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 export const studentsRoutes = new Hono();
 studentsRoutes.use('/*', authMiddleware);
@@ -61,15 +61,24 @@ studentsRoutes.get('/:id', async (c) => {
     const id = parseInt(c.req.param('id'), 10);
     if (isNaN(id))
         return c.json({ success: false, error: 'Invalid ID' }, 400);
-    const [student] = await db.select().from(students).where(eq(students.id, id));
-    if (!student)
+    const rows = await db.select({
+        student: students,
+        healthRecord: healthRecords,
+        school: schools,
+    })
+        .from(students)
+        .leftJoin(healthRecords, eq(healthRecords.studentId, students.id))
+        .leftJoin(schools, eq(schools.id, students.schoolId))
+        .where(eq(students.id, id));
+    if (rows.length === 0)
         return c.json({ success: false, error: 'Student not found' }, 404);
-    const [record] = await db.select().from(healthRecords).where(eq(healthRecords.studentId, id));
+    const row = rows[0];
     return c.json({
         success: true,
         data: {
-            ...student,
-            healthRecord: record || null
+            ...row.student,
+            school: row.school || null,
+            healthRecord: row.healthRecord || null,
         }
     });
 });
@@ -86,6 +95,81 @@ studentsRoutes.post('/', async (c) => {
         }
         const [student] = await db.insert(students).values(result.data).returning();
         return c.json({ success: true, data: student });
+    }
+    catch (err) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+// ── Mental Health Assessments ────────────────────────────────────────────
+// Admin analytics: all students with their latest mental health data
+studentsRoutes.get('/mental-health/all', requireAdmin, async (c) => {
+    try {
+        // Get all students with school info and health records
+        const studentsWithData = await db.select({
+            student: students,
+            school: schools,
+            healthRecord: healthRecords,
+        })
+            .from(students)
+            .leftJoin(schools, eq(schools.id, students.schoolId))
+            .leftJoin(healthRecords, eq(healthRecords.studentId, students.id));
+        // Get all mental health assessments
+        const allAssessments = await db
+            .select()
+            .from(studentMentalHealthAssessments)
+            .orderBy(desc(studentMentalHealthAssessments.createdAt));
+        // Group assessments by studentId
+        const assessmentsByStudent = allAssessments.reduce((acc, a) => {
+            if (!acc[a.studentId])
+                acc[a.studentId] = [];
+            acc[a.studentId].push(a);
+            return acc;
+        }, {});
+        const result = studentsWithData.map(row => ({
+            ...row.student,
+            school: row.school,
+            healthRecord: row.healthRecord,
+            mentalHealthAssessments: assessmentsByStudent[row.student.id] || [],
+        }));
+        return c.json({ success: true, data: result });
+    }
+    catch (err) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+studentsRoutes.get('/:id/mental-health', async (c) => {
+    const studentId = parseInt(c.req.param('id') ?? '', 10);
+    if (isNaN(studentId))
+        return c.json({ success: false, error: 'Invalid ID' }, 400);
+    try {
+        const assessments = await db
+            .select()
+            .from(studentMentalHealthAssessments)
+            .where(eq(studentMentalHealthAssessments.studentId, studentId))
+            .orderBy(desc(studentMentalHealthAssessments.createdAt));
+        return c.json({ success: true, data: assessments });
+    }
+    catch (err) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+studentsRoutes.post('/:id/mental-health', async (c) => {
+    const studentId = parseInt(c.req.param('id') ?? '', 10);
+    if (isNaN(studentId))
+        return c.json({ success: false, error: 'Invalid ID' }, 400);
+    try {
+        const body = await c.req.json();
+        const result = studentMentalHealthSchema.safeParse(body);
+        if (!result.success) {
+            return c.json({ success: false, error: 'Invalid input', details: result.error.errors }, 400);
+        }
+        const [assessment] = await db.insert(studentMentalHealthAssessments).values({
+            studentId,
+            date: result.data.date,
+            responses: result.data.responses,
+            totalScore: result.data.totalScore ?? null,
+        }).returning();
+        return c.json({ success: true, data: assessment });
     }
     catch (err) {
         return c.json({ success: false, error: err.message }, 500);

@@ -273,4 +273,54 @@ export declare const validationWarnings: z.ZodObject<{
     weight?: unknown;
     hb?: unknown;
 }>;
+export declare const studentMentalHealthSchema: z.ZodObject<{
+    date: z.ZodString;
+    responses: z.ZodRecord<z.ZodString, z.ZodNumber>;
+    totalScore: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    date: string;
+    responses: Record<string, number>;
+    totalScore?: number | null | undefined;
+}, {
+    date: string;
+    responses: Record<string, number>;
+    totalScore?: number | null | undefined;
+}>;
+export declare const schoolAuditChecklistSchema: z.ZodObject<{
+    dateOfAudit: z.ZodString;
+    auditorName: z.ZodString;
+    responses: z.ZodRecord<z.ZodString, z.ZodBoolean>;
+    criticalNonCompliance: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    strengths: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    areasOfImprovement: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    correctiveActions: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    recommendations: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    overallScore: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    safeGrade: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    accreditationStatus: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    responses: Record<string, boolean>;
+    dateOfAudit: string;
+    auditorName: string;
+    criticalNonCompliance?: string[] | undefined;
+    strengths?: string | null | undefined;
+    areasOfImprovement?: string | null | undefined;
+    correctiveActions?: string | null | undefined;
+    recommendations?: string | null | undefined;
+    overallScore?: number | null | undefined;
+    safeGrade?: string | null | undefined;
+    accreditationStatus?: string | null | undefined;
+}, {
+    responses: Record<string, boolean>;
+    dateOfAudit: string;
+    auditorName: string;
+    criticalNonCompliance?: string[] | undefined;
+    strengths?: string | null | undefined;
+    areasOfImprovement?: string | null | undefined;
+    correctiveActions?: string | null | undefined;
+    recommendations?: string | null | undefined;
+    overallScore?: number | null | undefined;
+    safeGrade?: string | null | undefined;
+    accreditationStatus?: string | null | undefined;
+}>;
 //# sourceMappingURL=schemas.d.ts.map

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as XLSX from 'xlsx';
 import { fetchApi, API_URL } from '../lib/api';
@@ -13,6 +14,7 @@ import {
   Users,
   CheckCircle2,
   AlertCircle,
+  FileCheck,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { StudentUploadResult } from '@wish2care/shared';
@@ -31,6 +33,7 @@ function downloadStudentTemplate() {
 
 export function SchoolsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [schoolName, setSchoolName] = useState('');
   const [uploadingSchoolId, setUploadingSchoolId] = useState<number | null>(null);
@@ -242,6 +245,15 @@ export function SchoolsPage() {
                             if (file) handleUpload(school.id, file);
                           }}
                         />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => navigate(`/schools/${school.id}/audit`)}
+                          className="h-11 rounded-xl font-semibold border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        >
+                          <FileCheck className="h-4 w-4 mr-2" />
+                          Audit School
+                        </Button>
                         <Button
                           type="button"
                           disabled={isUploading}

@@ -148,3 +148,25 @@ export const validationWarnings = z.object({
     { message: `Hb should be between ${VALIDATION_RANGES.hb.min}–${VALIDATION_RANGES.hb.max} g/dL` }
   ),
 });
+
+// ── Mental Health Awareness Form Schema ────────────────────────────────
+export const studentMentalHealthSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  responses: z.record(z.string(), z.coerce.number().min(1).max(5)),
+  totalScore: z.coerce.number().optional().nullable(),
+});
+
+// ── School Audit Checklist Schema ──────────────────────────────────────
+export const schoolAuditChecklistSchema = z.object({
+  dateOfAudit: z.string().min(1, 'Date of Audit is required'),
+  auditorName: z.string().min(1, 'Auditor Name is required'),
+  responses: z.record(z.string(), z.boolean()),
+  criticalNonCompliance: z.array(z.string()).optional(),
+  strengths: z.string().optional().nullable(),
+  areasOfImprovement: z.string().optional().nullable(),
+  correctiveActions: z.string().optional().nullable(),
+  recommendations: z.string().optional().nullable(),
+  overallScore: z.coerce.number().optional().nullable(),
+  safeGrade: z.string().optional().nullable(),
+  accreditationStatus: z.string().optional().nullable(),
+});

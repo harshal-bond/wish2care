@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../lib/utils';
-import { LayoutDashboard, Users, Download, LogOut, Menu, ShieldAlert, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, Download, LogOut, Menu, ShieldAlert, Building2, BarChart2 } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,6 +16,7 @@ export function AppLayout() {
     ...(user?.role === 'admin'
       ? [
           { name: 'Schools', href: '/schools', icon: Building2 },
+          { name: 'Student Data', href: '/student-data', icon: BarChart2 },
           { name: 'Export Data', href: '/export', icon: Download },
         ]
       : []),

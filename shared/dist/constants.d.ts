@@ -147,4 +147,8 @@ export declare const EXCEL_COLUMN_MAP: {
 };
 export declare const EXCEL_DATA_START_ROW = 4;
 export declare const EXCEL_TEMPLATE_LAST_ROW = 63;
+export declare const SAFE_GRADES: readonly ["Platinum", "Gold", "Silver", "Bronze", "None"];
+export type SafeGrade = (typeof SAFE_GRADES)[number];
+export declare const ACCREDITATION_STATUSES: readonly ["Accredited", "Provisionally Accredited", "Reassessment Required", "Not Accredited"];
+export type AccreditationStatus = (typeof ACCREDITATION_STATUSES)[number];
 //# sourceMappingURL=constants.d.ts.map

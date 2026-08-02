@@ -122,7 +122,7 @@ export function StudentFormPage() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => navigate('/students')} 
+            onClick={() => navigate(`/students/${studentId}`)} 
             className="rounded-xl border border-gray-100 bg-white"
           >
             <ChevronLeft className="h-5 w-5 text-gray-600" />
@@ -733,7 +733,7 @@ export function StudentFormPage() {
 
                     <div className="pt-4">
                       <Button 
-                        onClick={() => navigate('/students')}
+                        onClick={() => navigate(`/students/${studentId}`)}
                         className="w-full h-12 rounded-xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2"
                       >
                         <CheckCircle2 className="h-5 w-5" />

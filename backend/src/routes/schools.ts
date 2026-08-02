@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
-import { schools, students } from '../db/schema.js';
+import { schools, students, schoolAuditChecklists } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
-import { schoolSchema } from '@wish2care/shared';
-import { eq, sql } from 'drizzle-orm';
+import { schoolSchema, schoolAuditChecklistSchema } from '@wish2care/shared';
+import { eq, sql, desc } from 'drizzle-orm';
 import { generateStudentCode, parseStudentExcel } from '../lib/parseStudentExcel.js';
 
 export const schoolsRoutes = new Hono();
@@ -117,5 +117,47 @@ schoolsRoutes.post('/:id/students/upload', requireAdmin, async (c) => {
     });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 400);
+  }
+});
+
+// ── School Audit Checklists ────────────────────────────────────────────
+
+schoolsRoutes.get('/:id/audit', async (c) => {
+  const schoolId = parseInt(c.req.param('id') ?? '', 10);
+  if (isNaN(schoolId)) return c.json({ success: false, error: 'Invalid ID' }, 400);
+
+  try {
+    const audits = await db
+      .select()
+      .from(schoolAuditChecklists)
+      .where(eq(schoolAuditChecklists.schoolId, schoolId))
+      .orderBy(desc(schoolAuditChecklists.createdAt));
+
+    return c.json({ success: true, data: audits });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
+  }
+});
+
+schoolsRoutes.post('/:id/audit', requireAdmin, async (c) => {
+  const schoolId = parseInt(c.req.param('id') ?? '', 10);
+  if (isNaN(schoolId)) return c.json({ success: false, error: 'Invalid ID' }, 400);
+
+  try {
+    const body = await c.req.json();
+    const result = schoolAuditChecklistSchema.safeParse(body);
+    
+    if (!result.success) {
+      return c.json({ success: false, error: 'Invalid input', details: result.error.errors }, 400);
+    }
+
+    const [audit] = await db.insert(schoolAuditChecklists).values({
+      schoolId,
+      ...result.data,
+    }).returning();
+
+    return c.json({ success: true, data: audit });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
   }
 });

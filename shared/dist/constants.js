@@ -109,4 +109,12 @@ export const EXCEL_COLUMN_MAP = {
 };
 export const EXCEL_DATA_START_ROW = 4;
 export const EXCEL_TEMPLATE_LAST_ROW = 63; // 60 students: rows 4–63
+// ── SAFE Programme Audit ───────────────────────────────────────────────
+export const SAFE_GRADES = ['Platinum', 'Gold', 'Silver', 'Bronze', 'None'];
+export const ACCREDITATION_STATUSES = [
+    'Accredited',
+    'Provisionally Accredited',
+    'Reassessment Required',
+    'Not Accredited',
+];
 //# sourceMappingURL=constants.js.map
