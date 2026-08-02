@@ -5,12 +5,14 @@
   "workspaces": [
     "shared",
     "backend",
-    "frontend"
+    "frontend",
+    "mobile"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:mobile": "npm run start --workspace=mobile",
     "build": "npm run build --workspace=shared && npm run build --workspace=backend && npm run build --workspace=frontend",
     "db:generate": "npm run db:generate --workspace=backend",
     "db:migrate": "npm run db:migrate --workspace=backend",
@@ -19,5 +21,11 @@
   "devDependencies": {
     "concurrently": "^9.1.2",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@wish2care/mobile": {
+      "react": "19.2.0",
+      "react-dom": "19.2.0"
+    }
   }
 }

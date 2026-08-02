@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Wish2Care",
+    "slug": "wish2care-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.wish2care.mobile"
+    },
+    "android": {
+      "package": "org.wish2care.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#622A7F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#F0EDE4"
+        }
+      ],
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6af2210b-b5ee-491d-bd40-7b31214631b9"
+      }
+    }
+  }
+}
