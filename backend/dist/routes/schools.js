@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { schools, students, schoolAuditChecklists } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 import { schoolSchema, schoolAuditChecklistSchema } from '@wish2care/shared';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, count } from 'drizzle-orm';
 import { generateStudentCode, parseStudentExcel } from '../lib/parseStudentExcel.js';
 export const schoolsRoutes = new Hono();
 schoolsRoutes.use('/*', authMiddleware);
@@ -56,10 +56,18 @@ schoolsRoutes.post('/:id/students/upload', requireAdmin, async (c) => {
         }
         const buffer = await file.arrayBuffer();
         const { rows, errors } = await parseStudentExcel(buffer);
+        // Count existing students in this school to determine starting sequence number
+        const [{ existingCount }] = await db
+            .select({ existingCount: count(students.id) })
+            .from(students)
+            .where(eq(students.schoolId, schoolId));
         let imported = 0;
         let skipped = 0;
+        let seq = (existingCount ?? 0) + 1;
         for (const row of rows) {
-            const studentCode = row.data.studentCode?.trim() || generateStudentCode();
+            // If Excel has a code already, use it; otherwise auto-generate
+            const studentCode = row.data.studentCode?.trim()
+                || generateStudentCode(school.name, schoolId, seq);
             try {
                 await db.insert(students).values({
                     studentCode,
@@ -69,6 +77,7 @@ schoolsRoutes.post('/:id/students/upload', requireAdmin, async (c) => {
                     schoolId,
                 });
                 imported += 1;
+                seq += 1;
             }
             catch (err) {
                 if (err.code === '23505') {

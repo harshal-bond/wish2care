@@ -3,8 +3,8 @@ import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 import { studentSchema, studentMentalHealthSchema, isRecordComplete, countCompletedDomains } from '@wish2care/shared';
-import { eq, like, or, and, desc } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
+import { eq, like, or, and, desc, count } from 'drizzle-orm';
+import { generateStudentCode } from '../lib/parseStudentExcel.js';
 export const studentsRoutes = new Hono();
 studentsRoutes.use('/*', authMiddleware);
 studentsRoutes.get('/', async (c) => {
@@ -85,9 +85,20 @@ studentsRoutes.get('/:id', async (c) => {
 studentsRoutes.post('/', async (c) => {
     try {
         const body = await c.req.json();
-        // Auto generate code if missing
-        if (!body.studentCode) {
-            body.studentCode = `STU-${uuidv4().substring(0, 8).toUpperCase()}`;
+        // Auto generate a school-aware code if missing
+        if (!body.studentCode && body.schoolId) {
+            const schoolId = parseInt(String(body.schoolId), 10);
+            const [school] = await db.select().from(schools).where(eq(schools.id, schoolId));
+            if (school) {
+                const [{ cnt }] = await db
+                    .select({ cnt: count(students.id) })
+                    .from(students)
+                    .where(eq(students.schoolId, schoolId));
+                body.studentCode = generateStudentCode(school.name, schoolId, (cnt ?? 0) + 1);
+            }
+            else {
+                body.studentCode = `STU-${Date.now()}`;
+            }
         }
         const result = studentSchema.safeParse(body);
         if (!result.success) {
