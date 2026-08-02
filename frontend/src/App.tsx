@@ -8,6 +8,11 @@ import { DashboardPage } from './pages/DashboardPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { StudentFormPage } from './pages/StudentFormPage';
 import { ExportPage } from './pages/ExportPage';
+import { SchoolsPage } from './pages/SchoolsPage';
+import { MentalHealthFormPage } from './pages/MentalHealthFormPage';
+import { SchoolAuditFormPage } from './pages/SchoolAuditFormPage';
+import { StudentProfilePage } from './pages/StudentProfilePage';
+import { StudentDataPage } from './pages/StudentDataPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,7 +45,12 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/students" element={<StudentsPage />} />
-              <Route path="/students/:id" element={<StudentFormPage />} />
+              <Route path="/students/:id" element={<StudentProfilePage />} />
+              <Route path="/students/:id/health-record" element={<StudentFormPage />} />
+              <Route path="/students/:id/mental-health" element={<MentalHealthFormPage />} />
+              <Route path="/schools" element={<ProtectedRoute requireAdmin><SchoolsPage /></ProtectedRoute>} />
+              <Route path="/schools/:id/audit" element={<ProtectedRoute requireAdmin><SchoolAuditFormPage /></ProtectedRoute>} />
+              <Route path="/student-data" element={<ProtectedRoute requireAdmin><StudentDataPage /></ProtectedRoute>} />
               <Route path="/export" element={<ProtectedRoute requireAdmin><ExportPage /></ProtectedRoute>} />
             </Route>
           </Routes>

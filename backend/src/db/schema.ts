@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, integer, boolean, real } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, timestamp, integer, boolean, real, jsonb, text } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // ── Schools ────────────────────────────────────────────────────────────
@@ -116,5 +116,51 @@ export const healthRecordsRelations = relations(healthRecords, ({ one }) => ({
   student: one(students, {
     fields: [healthRecords.studentId],
     references: [students.id],
+  }),
+}));
+
+// ── Student Mental Health Assessments ──────────────────────────────────
+export const studentMentalHealthAssessments = pgTable('student_mental_health_assessments', {
+  id: serial('id').primaryKey(),
+  studentId: integer('student_id')
+    .notNull()
+    .references(() => students.id, { onDelete: 'cascade' }),
+  date: varchar('date', { length: 50 }).notNull(),
+  responses: jsonb('responses').notNull(),
+  totalScore: integer('total_score'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ── School Audit Checklists ────────────────────────────────────────────
+export const schoolAuditChecklists = pgTable('school_audit_checklists', {
+  id: serial('id').primaryKey(),
+  schoolId: integer('school_id')
+    .notNull()
+    .references(() => schools.id, { onDelete: 'cascade' }),
+  dateOfAudit: varchar('date_of_audit', { length: 50 }).notNull(),
+  auditorName: varchar('auditor_name', { length: 255 }).notNull(),
+  responses: jsonb('responses').notNull(),
+  criticalNonCompliance: jsonb('critical_non_compliance'),
+  strengths: text('strengths'),
+  areasOfImprovement: text('areas_of_improvement'),
+  correctiveActions: text('corrective_actions'),
+  recommendations: text('recommendations'),
+  overallScore: integer('overall_score'),
+  safeGrade: varchar('safe_grade', { length: 50 }),
+  accreditationStatus: varchar('accreditation_status', { length: 50 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const studentMentalHealthAssessmentsRelations = relations(studentMentalHealthAssessments, ({ one }) => ({
+  student: one(students, {
+    fields: [studentMentalHealthAssessments.studentId],
+    references: [students.id],
+  }),
+}));
+
+export const schoolAuditChecklistsRelations = relations(schoolAuditChecklists, ({ one }) => ({
+  school: one(schools, {
+    fields: [schoolAuditChecklists.schoolId],
+    references: [schools.id],
   }),
 }));
