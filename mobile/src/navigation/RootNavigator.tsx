@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Feather from '@expo/vector-icons/Feather';
@@ -22,7 +22,14 @@ const brandedHeader = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+
+  const confirmLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Yes', style: 'destructive', onPress: logout },
+    ]);
+  };
 
   if (loading) {
     return (
@@ -37,7 +44,39 @@ export function RootNavigator() {
       {user ? <OfflineBanner /> : null}
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {user ? (
+          {user?.role === 'student' ? (
+            <>
+              <Stack.Screen
+                name="StudentDetail"
+                component={StudentDetailScreen}
+                initialParams={{ studentId: user.id }}
+                options={{
+                  ...brandedHeader,
+                  title: 'My Health Passport',
+                  headerRight: () => (
+                    <Pressable
+                      onPress={confirmLogout}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Log out"
+                    >
+                      <Feather name="log-out" size={20} color={colors.white} />
+                    </Pressable>
+                  ),
+                }}
+              />
+              <Stack.Screen
+                name="StudentReport"
+                component={StudentReportScreen}
+                options={{ ...brandedHeader, title: 'Report' }}
+              />
+              <Stack.Screen
+                name="ComingSoon"
+                component={ComingSoonScreen}
+                options={({ route }) => ({ ...brandedHeader, title: route.params.title ?? 'Coming Soon' })}
+              />
+            </>
+          ) : user ? (
             <>
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen

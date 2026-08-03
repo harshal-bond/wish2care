@@ -43,7 +43,7 @@ export const YES_NO = ['Yes', 'No'];
 // ── Gender ─────────────────────────────────────────────────────────────
 export const GENDER_OPTIONS = ['M', 'F'];
 // ── Roles ──────────────────────────────────────────────────────────────
-export const ROLES = ['admin', 'fieldworker'];
+export const ROLES = ['admin', 'fieldworker', 'student'];
 // ── Validation ranges (warn, not block) ────────────────────────────────
 export const VALIDATION_RANGES = {
     height: { min: 80, max: 220, unit: 'cm' },

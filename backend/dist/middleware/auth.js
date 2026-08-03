@@ -22,4 +22,21 @@ export const requireAdmin = async (c, next) => {
     }
     await next();
 };
+export const requireWorker = async (c, next) => {
+    const user = c.get('user');
+    if (!user || user.role === 'student') {
+        return c.json({ success: false, error: 'Forbidden: Worker access required' }, 403);
+    }
+    await next();
+};
+export const requireOwnStudentId = (paramName) => async (c, next) => {
+    const user = c.get('user');
+    if (user?.role === 'student') {
+        const requestedId = parseInt(c.req.param(paramName) ?? '', 10);
+        if (requestedId !== user.id) {
+            return c.json({ success: false, error: 'Forbidden' }, 403);
+        }
+    }
+    await next();
+};
 //# sourceMappingURL=auth.js.map

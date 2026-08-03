@@ -42,6 +42,20 @@ export const registerWorkerSchema = z.object({
   assignedSchoolId: z.number().optional().nullable(),
 });
 
+// ── Student OTP auth schemas ────────────────────────────────────────────
+export const requestOtpSchema = z.object({
+  phone: z.string().min(10, 'Enter a valid phone number').max(15, 'Enter a valid phone number'),
+});
+
+export const verifyOtpSchema = z.object({
+  phone: z.string().min(10, 'Enter a valid phone number').max(15, 'Enter a valid phone number'),
+  otp: z.string().length(6, 'OTP must be 6 digits'),
+});
+
+export const setStudentPhoneSchema = z.object({
+  phone: z.string().min(10, 'Enter a valid phone number').max(15, 'Enter a valid phone number'),
+});
+
 // ── School schema ──────────────────────────────────────────────────────
 export const schoolSchema = z.object({
   name: z.string().min(1, 'School name is required'),

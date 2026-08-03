@@ -46,7 +46,7 @@ export declare const YES_NO: readonly ["Yes", "No"];
 export type YesNo = (typeof YES_NO)[number];
 export declare const GENDER_OPTIONS: readonly ["M", "F"];
 export type Gender = (typeof GENDER_OPTIONS)[number];
-export declare const ROLES: readonly ["admin", "fieldworker"];
+export declare const ROLES: readonly ["admin", "fieldworker", "student"];
 export type Role = (typeof ROLES)[number];
 export declare const VALIDATION_RANGES: {
     readonly height: {

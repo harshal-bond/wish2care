@@ -101,19 +101,40 @@ What *isn't* covered by this — see `mobile/CLAUDE.md`'s "Explicitly out of sco
 
 ## How to run
 
+Setup order matters here: get a device/emulator with the app's dev-client installed **first** — nothing in step 2+ will launch without it — then start the backend and mobile dev server.
+
 ### Prerequisites
 
 - Node.js v18+, npm (this is an npm-workspaces monorepo — always run `npm install` from the **repo root**, never inside `mobile/` alone).
+- **Android Studio** (for an Android emulator) or **Xcode**, macOS only (for the iOS Simulator) — only needed if you're not testing on a physical device.
+- **Access to this project's Expo/EAS account.** `mobile/app.json`'s `extra.eas.projectId` ties builds to a specific Expo account — ask whoever owns it to add you as a collaborator at [expo.dev](https://expo.dev) before step 1 below, or `eas build` will fail.
 - The backend needs to be running for the app to do anything past the login screen (student list, saving records — all of it hits the API).
 
-### 1. Start the backend (from the repo root, separate terminal)
+### 1. Set up your emulator/device with the dev-client (first time only, per device)
+
+This app requires a **custom `expo-dev-client` build**, not Expo Go — on a machine/device that's never run this app before, there is no app to open yet until you do this once. Skip straight to step 2 if you already have it installed.
+
+a. Confirm you have EAS project access (see Prerequisites).
+b. Have ready **one** of: a running Android emulator (via Android Studio), a physical Android device (USB debugging or same WiFi), the iOS Simulator (Xcode, macOS only), or a physical iOS device.
+c. Build it:
+   ```bash
+   cd mobile
+   npx eas-cli build --profile development --platform android   # or: --platform ios
+   ```
+   This is a cloud build (~10–20 min); `eas-cli` isn't installed globally in this project, hence `npx`.
+d. Install the result. This does **not** happen automatically — once the build finishes, EAS gives you a QR code / download link. Open it on a physical device to install the `.apk`/`.ipa` directly; for an emulator, download it and drag it on, or use `eas build:run`.
+e. That's it for first-time setup — proceed to step 2. You'll only repeat this build when a **native** dependency changes later (see "When you need a native rebuild" below); everyday JS/TS changes hot-reload without it.
+
+**Don't want to do any of this just to look at the UI?** `npm run web --workspace=mobile` runs the app in a browser tab with zero device/build setup. Native-only features (offline detection, the real dev-client) won't work there, but every screen renders and is clickable — a fast way to preview without the EAS round-trip.
+
+### 2. Start the backend (from the repo root, separate terminal)
 
 ```bash
 docker-compose up -d        # Postgres + pgAdmin
 npm run dev                 # backend (:3000) + frontend web (:5173)
 ```
 
-### 2. Point the mobile app at the backend
+### 3. Point the mobile app at the backend
 
 Copy `mobile/.env.example` to `mobile/.env` if you haven't, and set `EXPO_PUBLIC_API_URL`:
 
@@ -121,8 +142,9 @@ Copy `mobile/.env.example` to `mobile/.env` if you haven't, and set `EXPO_PUBLIC
 - **Physical device**: `http://<your-machine's-current-LAN-IP>:3000/api` — find it with `ipconfig` (Windows) and look for the WiFi adapter's IPv4 address. **This changes whenever your machine's IP changes** (new network, DHCP lease renewal) — if the app suddenly can't reach the API, check this first before anything else.
   - Phone and computer must be on the **same WiFi network**.
   - Changing `.env` requires **restarting** `npm run dev:mobile`, not just reloading the app — `EXPO_PUBLIC_*` vars are inlined into the bundle at Metro start time, not read live.
+  - **Windows Firewall can silently block this.** If the phone can never reach the backend even with the right IP, check that inbound connections to port 3000 are allowed for `node.exe` (`Get-NetFirewallRule -Direction Inbound -Enabled True` in PowerShell, or just check Windows Defender Firewall settings) — this cost real debugging time once already.
 
-### 3. Start the mobile dev server (separate terminal, from repo root)
+### 4. Start the mobile dev server (separate terminal, from repo root)
 
 ```bash
 npm run dev:mobile
@@ -135,14 +157,7 @@ This is Expo's interactive CLI. Once running:
 
 ### When you need a native rebuild
 
-Plain JS/TS changes hot-reload through the existing dev-client build — most of the time you'll never need this. You only need a new build when a **native** dependency changes (a new package with native code, e.g. `@react-native-community/netinfo`, or an Expo SDK upgrade):
-
-```bash
-cd mobile
-npx eas-cli build --profile development --platform android
-```
-
-This is a cloud build (~10–20 min). It does **not** install anything automatically — once it finishes, EAS gives you a QR code / download link; open that on the phone and install the resulting `.apk` (it'll prompt to update the existing app, same package). Only after that's installed will the new native code actually be present on the device.
+Plain JS/TS changes hot-reload through the existing dev-client build — most of the time you'll never need this after the first-time setup in step 1. You only need a new build when a **native** dependency changes (a new package with native code, e.g. `@react-native-community/netinfo`, or an Expo SDK upgrade) — repeat step 1c/1d above.
 
 ---
 
@@ -179,7 +194,7 @@ Run any of them with `npx eas-cli build --profile <name> --platform <android|ios
 
 ## Known limitations
 
-- **Never verified on a real device by an automated process** — everything in this repo's history was checked via typecheck, `jest`, and a `--web` bundle smoke test in an environment with no attached emulator. Treat on-device behavior as unverified until someone actually runs the manual checklist below.
+- **Confirmed running on a physical Android device** (sign-in, navigation) after the dev-client rebuild — but the full offline checklist below (airplane mode → save → kill app → reconnect) hasn't been walked through end-to-end and confirmed yet. Treat that specific flow as unverified until someone runs it.
 - **Session expiry isn't handled specially.** A 401 from an expired token just surfaces as a raw error message on whatever screen triggered it, instead of redirecting to `SignIn`.
 - **No crash reporting.** A production crash on a worker's device currently has no way to reach you (no Sentry/Crashlytics equivalent wired up).
 - **Cold-start-while-offline edge case**: a device with no prior successful session (no persisted cache yet) that's offline on first launch will show a spinner indefinitely on data screens, since queries pause via `onlineManager` — no fallback message for that specific case yet.

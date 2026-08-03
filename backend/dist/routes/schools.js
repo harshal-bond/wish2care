@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { schools, students, schoolAuditChecklists } from '../db/schema.js';
-import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { authMiddleware, requireAdmin, requireWorker } from '../middleware/auth.js';
 import { schoolSchema, schoolAuditChecklistSchema } from '@wish2care/shared';
 import { eq, sql, desc, count } from 'drizzle-orm';
 import { generateStudentCode, parseStudentExcel } from '../lib/parseStudentExcel.js';
 export const schoolsRoutes = new Hono();
 schoolsRoutes.use('/*', authMiddleware);
+schoolsRoutes.use('/*', requireWorker);
 schoolsRoutes.get('/', async (c) => {
     const user = c.get('user');
     const baseQuery = db
