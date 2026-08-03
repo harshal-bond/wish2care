@@ -58,7 +58,7 @@ export const GENDER_OPTIONS = ['M', 'F'] as const;
 export type Gender = (typeof GENDER_OPTIONS)[number];
 
 // ── Roles ──────────────────────────────────────────────────────────────
-export const ROLES = ['admin', 'fieldworker'] as const;
+export const ROLES = ['admin', 'fieldworker', 'student'] as const;
 export type Role = (typeof ROLES)[number];
 
 // ── Validation ranges (warn, not block) ────────────────────────────────

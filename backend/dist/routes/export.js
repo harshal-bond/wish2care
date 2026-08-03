@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { students, healthRecords, schools } from '../db/schema.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, requireWorker } from '../middleware/auth.js';
 import { eq, inArray } from 'drizzle-orm';
 import { EXCEL_COLUMN_MAP, EXCEL_DATA_START_ROW, EXCEL_TEMPLATE_LAST_ROW } from '@wish2care/shared';
 import ExcelJS from 'exceljs';
 import path from 'path';
 export const exportRoutes = new Hono();
 exportRoutes.use('/*', authMiddleware);
+exportRoutes.use('/*', requireWorker);
 exportRoutes.post('/', async (c) => {
     try {
         const body = await c.req.json();

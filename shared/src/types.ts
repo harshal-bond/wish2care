@@ -2,6 +2,9 @@ import { z } from 'zod';
 import type {
   loginSchema,
   registerWorkerSchema,
+  requestOtpSchema,
+  verifyOtpSchema,
+  setStudentPhoneSchema,
   studentSchema,
   studentUploadRowSchema,
   studentSchoolUploadRowSchema,
@@ -14,6 +17,9 @@ import type {
 // ── Inferred types from schemas ────────────────────────────────────────
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterWorkerInput = z.infer<typeof registerWorkerSchema>;
+export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
+export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+export type SetStudentPhoneInput = z.infer<typeof setStudentPhoneSchema>;
 export type StudentInput = z.infer<typeof studentSchema>;
 export type StudentUploadRow = z.infer<typeof studentUploadRowSchema>;
 export type StudentSchoolUploadRow = z.infer<typeof studentSchoolUploadRowSchema>;
@@ -116,6 +122,18 @@ export interface Worker {
 export interface AuthResponse {
   token: string;
   worker: Omit<Worker, 'createdAt'>;
+}
+
+export interface StudentAuthResponse {
+  token: string;
+  student: {
+    id: number;
+    name: string;
+    studentCode: string;
+    schoolId: number;
+    phone: string;
+    role: 'student';
+  };
 }
 
 export interface DashboardStats {

@@ -29,6 +29,17 @@ export const students = pgTable('students', {
   schoolId: integer('school_id')
     .notNull()
     .references(() => schools.id, { onDelete: 'cascade' }),
+  phone: varchar('phone', { length: 20 }).unique(), // student login channel — set separately via POST /students/:id/phone
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ── OTP Verifications (student login) ──────────────────────────────────
+export const otpVerifications = pgTable('otp_verifications', {
+  id: serial('id').primaryKey(),
+  phone: varchar('phone', { length: 20 }).notNull(),
+  otpCode: varchar('otp_code', { length: 10 }).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  consumedAt: timestamp('consumed_at'), // set on successful verify — makes each OTP single-use
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

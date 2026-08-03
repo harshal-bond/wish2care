@@ -6,9 +6,10 @@ import { persister } from '../lib/queryClient';
 
 interface User {
   id: number;
-  email: string;
-  role: 'admin' | 'fieldworker';
+  role: 'admin' | 'fieldworker' | 'student';
   name: string;
+  email?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetchApi('/auth/me');
         if (res?.success) {
-          setUser(res.data.worker);
+          setUser(res.data.worker ?? res.data.student);
         } else {
           await AsyncStorage.removeItem(TOKEN_KEY);
         }

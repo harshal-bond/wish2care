@@ -15,6 +15,13 @@ const mockWorker = {
   name: 'Field Worker',
 };
 
+const mockStudent = {
+  id: 7,
+  role: 'student' as const,
+  name: 'Sample Student',
+  phone: '9876543210',
+};
+
 function renderUseAuth() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const clearSpy = jest.spyOn(queryClient, 'clear');
@@ -50,6 +57,28 @@ describe('useAuth', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toEqual(mockWorker);
     expect(mockedFetchApi).toHaveBeenCalledWith('/auth/me');
+  });
+
+  it('restores a student session from the res.data.student fallback', async () => {
+    await AsyncStorage.setItem('token', 'valid-student-token');
+    mockedFetchApi.mockResolvedValue({ success: true, data: { student: mockStudent } });
+
+    const { result } = renderUseAuth();
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.user).toEqual(mockStudent);
+  });
+
+  it('login works for a student user just like a worker', async () => {
+    const { result } = renderUseAuth();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.login('student-token', mockStudent);
+    });
+
+    expect(result.current.user).toEqual(mockStudent);
+    expect(await AsyncStorage.getItem('token')).toBe('student-token');
   });
 
   it('clears the stored token when /auth/me fails', async () => {
