@@ -3,13 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent, Input } from '../components/ui';
-import { Users, CheckCircle, Clock, Search, ArrowRight, UserCheck, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Users, CheckCircle, Clock, Search, ArrowRight, UserCheck, Calendar, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
+import { AddStudentModal } from '../components/forms/AddStudentModal';
+import { Button } from '../components/ui';
 
 export function DashboardPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const { data, isLoading } = useQuery({
     queryKey: ['students'],
@@ -88,7 +94,17 @@ export function DashboardPage() {
                   </Link>
                 ))
               ) : (
-                <div className="px-4 py-3 text-sm text-gray-500 text-center">No students found.</div>
+                <div className="p-3 text-center bg-gray-50/50">
+                  <p className="text-sm text-gray-500 mb-2">No students found.</p>
+                  <Button 
+                    onClick={() => setShowAddModal(true)} 
+                    variant="outline"
+                    className="w-full text-xs font-semibold h-8 rounded-lg shadow-sm bg-white hover:bg-gray-50 text-gray-700"
+                  >
+                    <UserPlus className="h-3 w-3 mr-1.5" />
+                    Add "{search}" Manually
+                  </Button>
+                </div>
               )}
             </div>
           )}
@@ -237,6 +253,21 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <AddStudentModal 
+            isOpen={showAddModal} 
+            onClose={() => setShowAddModal(false)}
+            initialName={search}
+            user={user}
+            onSuccess={(newId) => {
+              queryClient.invalidateQueries({ queryKey: ['students'] });
+              navigate(`/students/${newId}`);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

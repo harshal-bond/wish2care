@@ -1,13 +1,24 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
-import { Input, Card, CardContent } from '../components/ui';
-import { Search, SearchX, ArrowRight, GraduationCap } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Input, Card, CardContent, Button } from '../components/ui';
+import { Search, SearchX, ArrowRight, GraduationCap, Loader2, UserPlus, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../hooks/useAuth';
+import { SearchableSelect } from '../components/ui/SearchableSelect';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { studentSchema, GENDER_OPTIONS } from '@wish2care/shared';
+import type { z } from 'zod';
+import { AddStudentModal } from '../components/forms/AddStudentModal';
 
 export function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const { data, isLoading } = useQuery({
     queryKey: ['students', searchTerm],
@@ -126,8 +137,31 @@ export function StudentsPage() {
               We couldn't find any students matching "{searchTerm}". Try a different spelling or student code.
             </p>
           </div>
+          {searchTerm && (
+            <div className="pt-4">
+              <Button onClick={() => setShowAddModal(true)} className="rounded-xl bg-gray-950 hover:bg-gray-800 text-white shadow-sm flex items-center justify-center gap-2 mx-auto h-12 px-6 font-semibold">
+                <UserPlus className="h-4 w-4" />
+                Add "{searchTerm}" Manually
+              </Button>
+            </div>
+          )}
         </div>
       )}
+
+      <AnimatePresence>
+        {showAddModal && (
+          <AddStudentModal 
+            isOpen={showAddModal} 
+            onClose={() => setShowAddModal(false)}
+            initialName={searchTerm}
+            user={user}
+            onSuccess={(newId) => {
+              queryClient.invalidateQueries({ queryKey: ['students'] });
+              navigate(`/students/${newId}`);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
