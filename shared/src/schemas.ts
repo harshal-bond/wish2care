@@ -54,6 +54,17 @@ export const studentSchema = z.object({
   age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
   gender: z.enum(GENDER_OPTIONS),
   schoolId: z.coerce.number().int().positive(),
+  dateOfBirth: optionalString(),
+  bloodGroup: optionalString(),
+  email: optionalString(),
+  mobileNo: optionalString(),
+  fatherMobileNo: optionalString(),
+  nomineeName: optionalString(),
+  relationship: optionalString(),
+  courseName: optionalString(),
+  collegeStream: optionalString(),
+  localAddress: optionalString(),
+  area: optionalString(),
 });
 
 export const studentUploadRowSchema = z.object({
@@ -62,6 +73,17 @@ export const studentUploadRowSchema = z.object({
   school: z.string().min(1, 'School name is required'),
   age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
   gender: z.string().transform((v) => v.toUpperCase().charAt(0) as 'M' | 'F'),
+  dateOfBirth: optionalString(),
+  bloodGroup: optionalString(),
+  email: optionalString(),
+  mobileNo: optionalString(),
+  fatherMobileNo: optionalString(),
+  nomineeName: optionalString(),
+  relationship: optionalString(),
+  courseName: optionalString(),
+  collegeStream: optionalString(),
+  localAddress: optionalString(),
+  area: optionalString(),
 });
 
 /** Row schema for bulk upload tied to a specific school (school comes from URL, not the sheet). */
@@ -70,6 +92,17 @@ export const studentSchoolUploadRowSchema = z.object({
   name: z.string().min(1, 'Student name is required'),
   age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
   gender: z.string().transform((v) => v.toUpperCase().charAt(0) as 'M' | 'F'),
+  dateOfBirth: optionalString(),
+  bloodGroup: optionalString(),
+  email: optionalString(),
+  mobileNo: optionalString(),
+  fatherMobileNo: optionalString(),
+  nomineeName: optionalString(),
+  relationship: optionalString(),
+  courseName: optionalString(),
+  collegeStream: optionalString(),
+  localAddress: optionalString(),
+  area: optionalString(),
 });
 
 // ── Health record schema ───────────────────────────────────────────────

@@ -26,6 +26,17 @@ export const students = pgTable('students', {
   name: varchar('name', { length: 255 }).notNull(),
   age: real('age').notNull(),
   gender: varchar('gender', { length: 10 }).notNull(), // 'M' | 'F'
+  dateOfBirth: varchar('date_of_birth', { length: 50 }),
+  bloodGroup: varchar('blood_group', { length: 10 }),
+  email: varchar('email', { length: 255 }),
+  mobileNo: varchar('mobile_no', { length: 20 }),
+  fatherMobileNo: varchar('father_mobile_no', { length: 20 }),
+  nomineeName: varchar('nominee_name', { length: 255 }),
+  relationship: varchar('relationship', { length: 50 }),
+  courseName: varchar('course_name', { length: 255 }),
+  collegeStream: varchar('college_stream', { length: 255 }),
+  localAddress: text('local_address'),
+  area: varchar('area', { length: 255 }),
   schoolId: integer('school_id')
     .notNull()
     .references(() => schools.id, { onDelete: 'cascade' }),

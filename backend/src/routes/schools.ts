@@ -91,6 +91,17 @@ schoolsRoutes.post('/:id/students/upload', requireAdmin, async (c) => {
           name: row.data.name,
           age: row.data.age,
           gender: row.data.gender,
+          dateOfBirth: row.data.dateOfBirth,
+          bloodGroup: row.data.bloodGroup,
+          email: row.data.email,
+          mobileNo: row.data.mobileNo,
+          fatherMobileNo: row.data.fatherMobileNo,
+          nomineeName: row.data.nomineeName,
+          relationship: row.data.relationship,
+          courseName: row.data.courseName,
+          collegeStream: row.data.collegeStream,
+          localAddress: row.data.localAddress,
+          area: row.data.area,
           schoolId,
         });
         imported += 1;

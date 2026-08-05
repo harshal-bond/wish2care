@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 import { studentSchema, studentMentalHealthSchema, isRecordComplete, countCompletedDomains } from '@wish2care/shared';
-import { eq, like, or, and, desc, count } from 'drizzle-orm';
+import { eq, like, ilike, or, and, desc, count } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/parseStudentExcel.js';
 
 export const studentsRoutes = new Hono();
@@ -38,8 +38,8 @@ studentsRoutes.get('/', async (c) => {
     const searchPattern = `%${search}%`;
     conditions.push(
       or(
-        like(students.name, searchPattern),
-        like(students.studentCode, searchPattern)
+        ilike(students.name, searchPattern),
+        ilike(students.studentCode, searchPattern)
       )
     );
   }
