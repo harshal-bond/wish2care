@@ -1,16 +1,11 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { Input, Card, CardContent, Button } from '../components/ui';
-import { Search, SearchX, ArrowRight, GraduationCap, Loader2, UserPlus, X } from 'lucide-react';
+import { Search, SearchX, ArrowRight, GraduationCap, UserPlus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
-import { SearchableSelect } from '../components/ui/SearchableSelect';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { studentSchema, GENDER_OPTIONS } from '@wish2care/shared';
-import type { z } from 'zod';
 import { AddStudentModal } from '../components/forms/AddStudentModal';
 
 export function StudentsPage() {

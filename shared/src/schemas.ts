@@ -9,7 +9,7 @@ import {
 } from './constants.js';
 
 // ── Helper: preprocess empty string "" or undefined to null ───────────
-const preprocessEmptyToNull = (schema: z.ZodTypeAny) =>
+const preprocessEmptyToNull = <T extends z.ZodTypeAny>(schema: T) =>
   z.preprocess((val) => {
     if (val === '' || val === undefined || val === null || (typeof val === 'number' && Number.isNaN(val))) {
       return null;
