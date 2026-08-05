@@ -8,24 +8,35 @@ import {
   VALIDATION_RANGES,
 } from './constants.js';
 
-// ── Helper: preprocess empty string "" or undefined to null ───────────
-const preprocessEmptyToNull = (schema: z.ZodTypeAny) =>
-  z.preprocess((val) => {
-    if (val === '' || val === undefined || val === null || (typeof val === 'number' && Number.isNaN(val))) {
-      return null;
-    }
-    return val;
-  }, schema);
+export const optionalNumber = () =>
+  z.union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform((val): number | null => {
+      if (val === '' || val === null || val === undefined) return null;
+      const num = Number(val);
+      if (Number.isNaN(num)) return null;
+      return num;
+    });
 
-export const optionalNumber = () => preprocessEmptyToNull(z.coerce.number().nullable().optional());
-export const optionalString = () => preprocessEmptyToNull(z.string().nullable().optional());
+export const optionalString = () =>
+  z.union([z.string(), z.null(), z.undefined()])
+    .transform((val): string | null => (val === '' || val == null ? null : val));
 
 // ── Classification enum ────────────────────────────────────────────────
-const classificationEnum = preprocessEmptyToNull(
-  z.enum([CLASSIFICATION.NORMAL, CLASSIFICATION.CAUTION, CLASSIFICATION.HIGH_RISK]).nullable().optional()
-);
+type ClassificationVal = typeof CLASSIFICATION.NORMAL | typeof CLASSIFICATION.CAUTION | typeof CLASSIFICATION.HIGH_RISK | null;
+const classificationEnum = z.union([
+  z.enum([CLASSIFICATION.NORMAL, CLASSIFICATION.CAUTION, CLASSIFICATION.HIGH_RISK]),
+  z.literal(''),
+  z.null(),
+  z.undefined()
+]).transform((val): ClassificationVal => (val === '' || val == null ? null : val));
 
-const yesNoEnum = preprocessEmptyToNull(z.enum(YES_NO).nullable().optional());
+type YesNoVal = typeof YES_NO[number] | null;
+const yesNoEnum = z.union([
+  z.enum(YES_NO),
+  z.literal(''),
+  z.null(),
+  z.undefined()
+]).transform((val): YesNoVal => (val === '' || val == null ? null : val));
 
 
 // ── Auth schemas ───────────────────────────────────────────────────────
@@ -152,7 +163,7 @@ export const healthRecordSchema = z.object({
   tbWeightLoss: yesNoEnum.optional().nullable(),
 
   // Mental Wellbeing Red-Flag
-  mentalWellbeingResult: preprocessEmptyToNull(z.enum(MENTAL_WELLBEING_OPTIONS).nullable().optional()),
+  mentalWellbeingResult: z.union([z.enum(MENTAL_WELLBEING_OPTIONS), z.literal(''), z.null(), z.undefined()]).transform((val): typeof MENTAL_WELLBEING_OPTIONS[number] | null => (val === '' || val == null ? null : val)),
 });
 
 // ── Partial health record for autosave ─────────────────────────────────

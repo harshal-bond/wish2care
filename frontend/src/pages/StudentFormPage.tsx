@@ -7,11 +7,13 @@ import {
   healthRecordPartialSchema, 
   MENTAL_WELLBEING_OPTIONS,
   YES_NO,
-  CLASSIFICATION
+  CLASSIFICATION,
+  isRecordComplete
 } from '@wish2care/shared';
 import type { HealthRecordPartial } from '@wish2care/shared';
 import { fetchApi } from '../lib/api';
 import { useAutoSave } from '../hooks/useAutoSave';
+import { useAuth } from '../hooks/useAuth';
 import { Card, Input, Button } from '../components/ui';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { cn } from '../lib/utils';
@@ -29,7 +31,8 @@ import {
   Eye,
   Activity,
   Smile,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -52,6 +55,7 @@ export function StudentFormPage() {
   const navigate = useNavigate();
   const studentId = parseInt(id || '0', 10);
   const [activeStep, setActiveStep] = useState(1);
+  const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['student', studentId],
@@ -59,7 +63,8 @@ export function StudentFormPage() {
   });
 
   const form = useForm<HealthRecordPartial>({
-    resolver: zodResolver(healthRecordPartialSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(healthRecordPartialSchema as any),
     defaultValues: { studentId },
     mode: 'onTouched'
   });
@@ -113,9 +118,22 @@ export function StudentFormPage() {
   };
 
   const currentValues = form.getValues();
+  const isSubmitted = !!data?.data?.healthRecord && isRecordComplete(data.data.healthRecord) && user?.role === 'fieldworker';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-32">
+      {isSubmitted && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3">
+          <div className="bg-amber-100 p-2 rounded-xl text-amber-700">
+            <Lock className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-amber-900">Record Submitted & Locked</h3>
+            <p className="text-xs text-amber-700 mt-0.5">This health record is complete and has been submitted. It can no longer be edited by a field worker.</p>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner / Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-4">
@@ -157,7 +175,7 @@ export function StudentFormPage() {
           </div>
           <Button 
             onClick={() => forceSave()} 
-            disabled={isSaving} 
+            disabled={isSaving || isSubmitted} 
             variant="outline"
             className="rounded-xl font-semibold border-gray-200"
           >
@@ -211,7 +229,8 @@ export function StudentFormPage() {
               transition={{ duration: 0.15 }}
             >
               <Card className="border-gray-100 bg-white shadow-sm rounded-2xl p-6 md:p-8">
-                {/* Step 1: Student Details */}
+                <fieldset disabled={isSubmitted} className="min-w-0">
+                  {/* Step 1: Student Details */}
                 {activeStep === 1 && (
                   <div className="space-y-6">
                     <div className="border-b border-gray-50 pb-4">
@@ -742,6 +761,7 @@ export function StudentFormPage() {
                     </div>
                   </div>
                 )}
+                </fieldset>
 
                 {/* Form Nav Buttons */}
                 <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between gap-4">

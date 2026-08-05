@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { healthRecords, students } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { healthRecordPartialSchema } from '@wish2care/shared';
+import { healthRecordPartialSchema, isRecordComplete } from '@wish2care/shared';
 import { eq } from 'drizzle-orm';
 
 export const healthRecordsRoutes = new Hono();
@@ -47,11 +47,17 @@ healthRecordsRoutes.put('/:studentId', async (c) => {
       return c.json({ success: false, error: 'Student not found' }, 404);
     }
 
+    const user = c.get('user');
+
     // Upsert the record
     const [existingRecord] = await db.select().from(healthRecords).where(eq(healthRecords.studentId, studentId));
     
     let record;
     if (existingRecord) {
+      if (user.role === 'fieldworker' && isRecordComplete(existingRecord)) {
+        return c.json({ success: false, error: 'Forbidden: Record is already submitted and cannot be edited by a fieldworker.' }, 403);
+      }
+
       // Update
       const updateData = { ...result.data, updatedAt: new Date() };
       console.log('[SAVE DB] Updating record with values:', JSON.stringify(updateData));
