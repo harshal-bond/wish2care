@@ -63,7 +63,8 @@ export function StudentFormPage() {
   });
 
   const form = useForm<HealthRecordPartial>({
-    resolver: zodResolver(healthRecordPartialSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(healthRecordPartialSchema as any),
     defaultValues: { studentId },
     mode: 'onTouched'
   });

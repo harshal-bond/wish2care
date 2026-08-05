@@ -163,7 +163,7 @@ export const healthRecordSchema = z.object({
   tbWeightLoss: yesNoEnum.optional().nullable(),
 
   // Mental Wellbeing Red-Flag
-  mentalWellbeingResult: preprocessEmptyToNull(z.enum(MENTAL_WELLBEING_OPTIONS).nullable().optional()),
+  mentalWellbeingResult: z.union([z.enum(MENTAL_WELLBEING_OPTIONS), z.literal(''), z.null(), z.undefined()]).transform((val): typeof MENTAL_WELLBEING_OPTIONS[number] | null => (val === '' || val == null ? null : val)),
 });
 
 // ── Partial health record for autosave ─────────────────────────────────
