@@ -17,61 +17,102 @@ export function useAutoSave({
   const [saveError, setSaveError] = useState<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastSavedPayloadRef = useRef<string>('');
-  const savingRef = useRef(false);
+  const inFlightRef = useRef(false);
+  const queuedRef = useRef(false);
   const queryClient = useQueryClient();
 
   // Keep latest form values accessible for unmount flush
   const formRef = useRef(form);
   formRef.current = form;
 
-  const persist = useCallback(
-    async (payload?: string) => {
-      const currentValues = formRef.current.getValues();
-      const currentPayload = payload ?? JSON.stringify(currentValues);
-
-      if (currentPayload === lastSavedPayloadRef.current) {
-        return true;
-      }
-
-      if (savingRef.current) {
-        // Wait briefly if a save is already in flight, then retry once
-        await new Promise((r) => setTimeout(r, 300));
-      }
-
-      try {
-        savingRef.current = true;
-        setIsSaving(true);
-        setSaveError(null);
-
-        await fetchApi(`/health-records/${studentId}`, {
-          method: 'PUT',
-          body: currentPayload,
-        });
-
-        lastSavedPayloadRef.current = currentPayload;
-        setLastSaved(new Date());
-
-        // Clear dirty so a refetch won't fight in-progress typing incorrectly
-        formRef.current.reset(formRef.current.getValues());
-
-        // Keep lists/other users' next load fresh
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['student', studentId] }),
-          queryClient.invalidateQueries({ queryKey: ['students'] }),
-        ]);
-
-        return true;
-      } catch (error: any) {
-        console.error('Auto-save failed', error);
-        setSaveError(error?.message || 'Save failed');
-        return false;
-      } finally {
-        savingRef.current = false;
-        setIsSaving(false);
-      }
+  const patchStudentCache = useCallback(
+    (savedRecord: unknown) => {
+      if (!savedRecord) return;
+      queryClient.setQueryData(['student', studentId], (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            healthRecord: savedRecord,
+          },
+        };
+      });
+      // Refresh list counts without refetching the open form
+      void queryClient.invalidateQueries({ queryKey: ['students'] });
     },
-    [studentId, queryClient]
+    [queryClient, studentId]
   );
+
+  const persist = useCallback(async (): Promise<boolean> => {
+    // Serialize saves: if one is in flight, queue a follow-up with the latest values
+    if (inFlightRef.current) {
+      queuedRef.current = true;
+      return true;
+    }
+
+    inFlightRef.current = true;
+    setIsSaving(true);
+    setSaveError(null);
+
+    let success = true;
+
+    try {
+      let guard = 0;
+      // Keep writing until the form snapshot matches what we last persisted
+      while (guard++ < 25) {
+        queuedRef.current = false;
+
+        const values = formRef.current.getValues();
+        const payload = JSON.stringify(values);
+
+        if (payload === lastSavedPayloadRef.current) {
+          break;
+        }
+
+        try {
+          const response = await fetchApi(`/health-records/${studentId}`, {
+            method: 'PUT',
+            body: payload,
+          });
+
+          lastSavedPayloadRef.current = payload;
+          setLastSaved(new Date());
+          patchStudentCache(response?.data);
+
+          // Only clear dirty if the user hasn't typed further during this request
+          const latestPayload = JSON.stringify(formRef.current.getValues());
+          if (latestPayload === payload) {
+            formRef.current.reset(formRef.current.getValues());
+          }
+        } catch (error: any) {
+          console.error('Auto-save failed', error);
+          setSaveError(error?.message || 'Save failed');
+          success = false;
+          break;
+        }
+
+        if (
+          !queuedRef.current &&
+          JSON.stringify(formRef.current.getValues()) === lastSavedPayloadRef.current
+        ) {
+          break;
+        }
+      }
+    } finally {
+      inFlightRef.current = false;
+      setIsSaving(false);
+    }
+
+    // Edits that arrived after the loop finished but before inFlight cleared
+    if (success && queuedRef.current) {
+      queuedRef.current = false;
+      return persist();
+    }
+
+    queuedRef.current = false;
+    return success;
+  }, [studentId, patchStudentCache]);
 
   // After server data is loaded into the form, mark that snapshot as "already saved"
   useEffect(() => {
@@ -84,16 +125,15 @@ export function useAutoSave({
       // Skip pure resets; allow dirty setValue (remarks / BP class)
       if (type === undefined && !form.formState.isDirty) return;
 
-      const currentValues = form.getValues();
-      const currentPayload = JSON.stringify(currentValues);
-
+      const currentPayload = JSON.stringify(form.getValues());
       if (currentPayload === lastSavedPayloadRef.current) return;
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setSaveError(null);
 
+      // Always read fresh values at save time — never close over a stale snapshot
       timeoutRef.current = setTimeout(() => {
-        void persist(currentPayload);
+        void persist();
       }, delay);
     });
 
@@ -113,7 +153,6 @@ export function useAutoSave({
       const payload = JSON.stringify(formRef.current.getValues());
       if (payload === lastSavedPayloadRef.current) return;
 
-      // keepalive fetch for tab close
       const token = localStorage.getItem('token');
       try {
         fetch(`${API_URL}/health-records/${studentId}`, {
@@ -141,14 +180,13 @@ export function useAutoSave({
     return () => {
       window.removeEventListener('beforeunload', flush);
       document.removeEventListener('visibilitychange', onVisibility);
-      // Also flush when navigating away within the SPA
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = undefined;
       }
       const payload = JSON.stringify(formRef.current.getValues());
       if (payload !== lastSavedPayloadRef.current) {
-        void persist(payload);
+        void persist();
       }
     };
   }, [studentId, persist]);
@@ -158,6 +196,15 @@ export function useAutoSave({
       clearTimeout(timeoutRef.current);
       timeoutRef.current = undefined;
     }
+
+    // Wait out any in-flight save, then persist the absolute latest snapshot
+    if (inFlightRef.current) {
+      queuedRef.current = true;
+      while (inFlightRef.current) {
+        await new Promise((r) => setTimeout(r, 40));
+      }
+    }
+
     return persist();
   };
 

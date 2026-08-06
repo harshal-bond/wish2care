@@ -208,18 +208,18 @@ export function StudentFormPage() {
     studentId,
   });
 
-  // Always hydrate from the latest server snapshot (multi-user / multi-section safe).
-  // Skip while the user has unsaved local edits so a background refetch can't wipe them.
+  // Hydrate from the server snapshot. Never overwrite while the user is typing or saving —
+  // a mid-save refetch was wiping rapid multi-field clicks down to a single value.
   useEffect(() => {
     if (!data?.data) return;
-    if (form.formState.isDirty) return;
+    if (form.formState.isDirty || isSaving) return;
     const hr = data.data.healthRecord;
     form.reset({
       ...(hr || {}),
       studentId,
       yesNoRemarks: hr?.yesNoRemarks || {},
     });
-  }, [data, dataUpdatedAt, form, studentId]);
+  }, [data, dataUpdatedAt, form, studentId, isSaving]);
 
   const watched = useWatch({ control: form.control });
   const scores = useMemo(() => computeScreeningScores(watched || {}), [watched]);
