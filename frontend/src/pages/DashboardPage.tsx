@@ -119,65 +119,73 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Main Stats Cards */}
+      {/* Main Stats Cards — click a status to open that filtered student list */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Total Students</CardTitle>
-            <div className="p-2 bg-gray-50 rounded-xl">
-              <Users className="h-4 w-4 text-gray-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight text-gray-900">{students.length}</div>
-            <p className="text-xs text-gray-400 mt-1">Screening master list</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Fully Complete</CardTitle>
-            <div className="p-2 bg-emerald-50 rounded-xl">
-              <CheckCircle className="h-4 w-4 text-emerald-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight text-emerald-600">{completed}</div>
-            <p className="text-xs text-gray-400 mt-1">All 8 screening sections done</p>
-            <div className="flex items-center gap-2 mt-2">
-              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full" style={{ width: `${progress}%` }} />
+        <Link to="/students" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-gray-300 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Total Students</CardTitle>
+              <div className="p-2 bg-gray-50 rounded-xl">
+                <Users className="h-4 w-4 text-gray-600" />
               </div>
-              <span className="text-xs font-semibold text-gray-700 shrink-0">{progress}%</span>
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-gray-900">{students.length}</div>
+              <p className="text-xs text-gray-400 mt-1">View all students</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">In Progress</CardTitle>
-            <div className="p-2 bg-amber-50 rounded-xl">
-              <UserCheck className="h-4 w-4 text-amber-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight text-amber-600">{inProgress}</div>
-            <p className="text-xs text-gray-400 mt-1">Started but not finished</p>
-          </CardContent>
-        </Card>
+        <Link to="/students?status=complete" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-emerald-200 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Fully Complete</CardTitle>
+              <div className="p-2 bg-emerald-50 rounded-xl">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-emerald-600">{completed}</div>
+              <p className="text-xs text-gray-400 mt-1">All 8 screening sections done</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full" style={{ width: `${progress}%` }} />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 shrink-0">{progress}%</span>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Not Started</CardTitle>
-            <div className="p-2 bg-orange-50 rounded-xl">
-              <Clock className="h-4 w-4 text-orange-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight text-orange-500">{pending}</div>
-            <p className="text-xs text-gray-400 mt-1">Awaiting data entry</p>
-          </CardContent>
-        </Card>
+        <Link to="/students?status=in_progress" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-amber-200 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">In Progress</CardTitle>
+              <div className="p-2 bg-amber-50 rounded-xl">
+                <UserCheck className="h-4 w-4 text-amber-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-amber-600">{inProgress}</div>
+              <p className="text-xs text-gray-400 mt-1">View started assessments</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link to="/students?status=not_started" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-orange-200 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Not Started</CardTitle>
+              <div className="p-2 bg-orange-50 rounded-xl">
+                <Clock className="h-4 w-4 text-orange-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-orange-500">{pending}</div>
+              <p className="text-xs text-gray-400 mt-1">View awaiting data entry</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
