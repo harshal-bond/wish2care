@@ -23,6 +23,9 @@ export function DashboardPage() {
     staleTime: 60_000,
   });
 
+  // Must stay above any early return (React hooks order)
+  const deferredSearch = useDeferredValue(search);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -36,8 +39,6 @@ export function DashboardPage() {
   const pending = students.length - completed;
   const progress = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
 
-  // Filter students for quick search (deferred so typing stays responsive)
-  const deferredSearch = useDeferredValue(search);
   const filteredStudents = students.filter((student: any) =>
     student.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
     student.studentCode.toLowerCase().includes(deferredSearch.toLowerCase())
