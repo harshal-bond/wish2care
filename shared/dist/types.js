@@ -1,79 +1,126 @@
 // ── Completion check helpers ───────────────────────────────────────────
-const filled = (v) => v !== null && v !== undefined && v !== '';
+const filled = (v) => v !== null && v !== undefined && v !== '' && !(typeof v === 'number' && Number.isNaN(v));
+const SCREENING_SECTIONS = [
+    {
+        id: 'A',
+        title: 'A — Anthropometry',
+        fields: [
+            { key: 'height', label: 'Height' },
+            { key: 'weight', label: 'Weight' },
+            { key: 'muac', label: 'MUAC' },
+            { key: 'waistCircumference', label: 'Waist Circumference' },
+        ],
+    },
+    {
+        id: 'BP',
+        title: 'Blood Pressure & RBS',
+        fields: [
+            { key: 'systolic', label: 'Systolic BP' },
+            { key: 'diastolic', label: 'Diastolic BP' },
+            { key: 'bpClass', label: 'BP Class' },
+            { key: 'randomBloodSugar', label: 'Random Blood Sugar' },
+        ],
+    },
+    {
+        id: 'B',
+        title: 'B — Diet',
+        fields: [
+            { key: 'breakfast', label: 'Breakfast' },
+            { key: 'fruitIntake', label: 'Fruit Intake' },
+            { key: 'vegetables', label: 'Vegetables' },
+            { key: 'proteinIntake', label: 'Protein Intake' },
+            { key: 'junkFood', label: 'Junk Food' },
+            { key: 'sugaryDrinks', label: 'Sugary Drinks' },
+            { key: 'waterIntake', label: 'Water Intake' },
+        ],
+    },
+    {
+        id: 'C',
+        title: 'C — Lifestyle',
+        fields: [
+            { key: 'physicalActivity', label: 'Physical Activity' },
+            { key: 'screenTime', label: 'Screen Time' },
+            { key: 'outdoorPlay', label: 'Outdoor Play' },
+            { key: 'sleepHours', label: 'Sleep Hours' },
+            { key: 'smoking', label: 'Smoking' },
+            { key: 'alcohol', label: 'Alcohol' },
+        ],
+    },
+    {
+        id: 'D',
+        title: 'D — Medical History',
+        fields: [
+            { key: 'chronicDisease', label: 'Chronic Disease' },
+            { key: 'frequentFever', label: 'Frequent Fever' },
+            { key: 'weightLoss', label: 'Weight Loss' },
+            { key: 'poorAppetite', label: 'Poor Appetite' },
+            { key: 'repeatedInfection', label: 'Repeated Infection' },
+            { key: 'hospitalisation', label: 'Hospitalisation' },
+            { key: 'medication', label: 'Medication' },
+        ],
+    },
+    {
+        id: 'E',
+        title: 'E — Mental Wellness',
+        fields: [
+            { key: 'stress', label: 'Stress' },
+            { key: 'mood', label: 'Mood' },
+            { key: 'concentration', label: 'Concentration' },
+            { key: 'bullying', label: 'Bullying' },
+        ],
+    },
+    {
+        id: 'F',
+        title: 'F — Clinical Observation',
+        fields: [
+            { key: 'pallor', label: 'Pallor' },
+            { key: 'dentalCaries', label: 'Dental Caries' },
+            { key: 'poorOralHygiene', label: 'Poor Oral Hygiene' },
+            { key: 'visionProblem', label: 'Vision Problem' },
+            { key: 'hairChanges', label: 'Hair Changes' },
+            { key: 'skinChanges', label: 'Skin Changes' },
+            { key: 'clubbing', label: 'Clubbing' },
+        ],
+    },
+    {
+        id: 'G',
+        title: 'G — Preventive Health',
+        fields: [
+            { key: 'vaccinationComplete', label: 'Vaccination Complete' },
+            { key: 'deworming', label: 'Deworming' },
+            { key: 'handHygiene', label: 'Hand Hygiene' },
+            { key: 'dentalCheckup', label: 'Dental Check-up' },
+            { key: 'visionScreening', label: 'Vision Screening' },
+        ],
+    },
+];
+/** Per-section list of unanswered screening fields (human-readable labels). */
+export function getMissingScreeningFields(record) {
+    const missing = [];
+    for (const section of SCREENING_SECTIONS) {
+        const fields = section.fields
+            .filter(({ key }) => !filled(record[key]))
+            .map(({ label }) => label);
+        if (fields.length > 0) {
+            missing.push({
+                sectionId: section.id,
+                sectionTitle: section.title,
+                fields,
+            });
+        }
+    }
+    return missing;
+}
 /**
  * Returns the count of completed screening sections (out of 8: A, BP, B–G)
  * matching domain completeness (all inputs present in a section).
  */
 export function countCompletedDomains(record) {
-    let count = 0;
-    // A – Anthropometry
-    if (filled(record.height) && filled(record.weight) && filled(record.muac) && filled(record.waistCircumference)) {
-        count++;
-    }
-    // Blood Pressure & RBS
-    if (filled(record.systolic) &&
-        filled(record.diastolic) &&
-        filled(record.bpClass) &&
-        filled(record.randomBloodSugar)) {
-        count++;
-    }
-    // B – Diet
-    if (filled(record.breakfast) &&
-        filled(record.fruitIntake) &&
-        filled(record.vegetables) &&
-        filled(record.proteinIntake) &&
-        filled(record.junkFood) &&
-        filled(record.sugaryDrinks) &&
-        filled(record.waterIntake)) {
-        count++;
-    }
-    // C – Lifestyle
-    if (filled(record.physicalActivity) &&
-        filled(record.screenTime) &&
-        filled(record.outdoorPlay) &&
-        filled(record.sleepHours) &&
-        filled(record.smoking) &&
-        filled(record.alcohol)) {
-        count++;
-    }
-    // D – Medical History
-    if (filled(record.chronicDisease) &&
-        filled(record.frequentFever) &&
-        filled(record.weightLoss) &&
-        filled(record.poorAppetite) &&
-        filled(record.repeatedInfection) &&
-        filled(record.hospitalisation) &&
-        filled(record.medication)) {
-        count++;
-    }
-    // E – Mental Wellness
-    if (filled(record.stress) &&
-        filled(record.mood) &&
-        filled(record.concentration) &&
-        filled(record.bullying)) {
-        count++;
-    }
-    // F – Clinical Observation
-    if (filled(record.pallor) &&
-        filled(record.dentalCaries) &&
-        filled(record.poorOralHygiene) &&
-        filled(record.visionProblem) &&
-        filled(record.hairChanges) &&
-        filled(record.skinChanges) &&
-        filled(record.clubbing)) {
-        count++;
-    }
-    // G – Preventive Health
-    if (filled(record.vaccinationComplete) &&
-        filled(record.deworming) &&
-        filled(record.handHygiene) &&
-        filled(record.dentalCheckup) &&
-        filled(record.visionScreening)) {
-        count++;
-    }
-    return count;
+    return SCREENING_SECTIONS.filter((section) => section.fields.every(({ key }) => filled(record[key]))).length;
 }
 export function isRecordComplete(record) {
+    if (record.assessmentComplete === true)
+        return true;
     return countCompletedDomains(record) === 8;
 }
 //# sourceMappingURL=types.js.map

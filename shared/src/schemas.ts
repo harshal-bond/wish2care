@@ -202,6 +202,11 @@ export const healthRecordSchema = z.object({
       if (val == null || typeof val !== 'object') return null;
       return val;
     }),
+
+  /** Explicitly marked complete (allows incomplete fields after user confirmation) */
+  assessmentComplete: z
+    .union([z.boolean(), z.null(), z.undefined()])
+    .transform((val): boolean => val === true),
 });
 
 // ── Partial health record for autosave ─────────────────────────────────
