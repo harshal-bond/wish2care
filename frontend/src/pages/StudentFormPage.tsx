@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -183,7 +183,10 @@ export function StudentFormPage() {
   const navigate = useNavigate();
   const studentId = parseInt(id || '0', 10);
   const [activeStep, setActiveStep] = useState(1);
+  const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['student', studentId],
@@ -283,8 +286,55 @@ export function StudentFormPage() {
               ? 'text-red-600'
               : undefined;
 
+  const handleCompleteScreening = async () => {
+    setIsCompleting(true);
+    try {
+      const saved = await forceSave();
+      if (!saved) return;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['student', studentId] }),
+        queryClient.invalidateQueries({ queryKey: ['students'] }),
+      ]);
+      setShowSubmitSuccess(true);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const goToStudentList = () => {
+    setShowSubmitSuccess(false);
+    navigate('/students');
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-32">
+      {showSubmitSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center space-y-5 border border-gray-100"
+          >
+            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-gray-900">Assessment submitted</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Screening data for <span className="font-semibold text-gray-800">{student.name}</span> has been
+                saved successfully. The assessment is complete.
+              </p>
+            </div>
+            <Button
+              onClick={goToStudentList}
+              className="w-full h-12 rounded-xl text-base font-bold bg-gray-950 hover:bg-gray-800 text-white"
+            >
+              Back to student list
+            </Button>
+          </motion.div>
+        </div>
+      )}
+
       {isSubmitted && (
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3">
           <div className="bg-amber-100 p-2 rounded-xl text-amber-700">
@@ -714,14 +764,16 @@ export function StudentFormPage() {
 
                       <div className="pt-4">
                         <Button
-                          onClick={async () => {
-                            await forceSave();
-                            navigate(`/students/${studentId}`);
-                          }}
+                          onClick={handleCompleteScreening}
+                          disabled={isCompleting || isSubmitted}
                           className="w-full h-12 rounded-xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2"
                         >
-                          <CheckCircle2 className="h-5 w-5" />
-                          Complete Screening
+                          {isCompleting ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-5 w-5" />
+                          )}
+                          {isCompleting ? 'Submitting...' : 'Complete Screening'}
                         </Button>
                       </div>
                     </div>
