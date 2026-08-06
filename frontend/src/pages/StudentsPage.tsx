@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useDeferredValue, useMemo } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { Input, Card, CardContent, Button } from '../components/ui';
 import { Search, SearchX, ArrowRight, GraduationCap, UserPlus } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { AddStudentModal } from '../components/forms/AddStudentModal';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
 export function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,13 +15,26 @@ export function StudentsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  
-  const { data, isLoading } = useQuery({
-    queryKey: ['students', searchTerm],
-    queryFn: () => fetchApi(`/students?search=${encodeURIComponent(searchTerm)}`)
+
+  // Load the school-scoped list once; filter locally so typing stays snappy
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['students'],
+    queryFn: () => fetchApi('/students'),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
 
-  const students = data?.data || [];
+  const deferredSearch = useDeferredValue(useDebouncedValue(searchTerm, 150));
+  const q = deferredSearch.trim().toLowerCase();
+
+  const students = useMemo(() => {
+    const all = data?.data || [];
+    if (!q) return all;
+    return all.filter(
+      (s: { name?: string; studentCode?: string }) =>
+        s.name?.toLowerCase().includes(q) || s.studentCode?.toLowerCase().includes(q)
+    );
+  }, [data?.data, q]);
 
   return (
     <div className="space-y-8">
@@ -41,6 +55,9 @@ export function StudentsPage() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        {isFetching && !isLoading ? (
+          <div className="absolute right-4 top-4 h-5 w-5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+        ) : null}
       </div>
 
       {/* Grid List */}
@@ -57,9 +74,9 @@ export function StudentsPage() {
 
             return (
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, delay: idx * 0.03 }}
+                transition={{ duration: 0.12, delay: Math.min(idx, 12) * 0.02 }}
                 key={student.id}
                 className="h-full"
               >
