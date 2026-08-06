@@ -113,6 +113,9 @@ export const healthRecords = pgTable('health_records', {
   /** Remarks for Yes answers: { fieldName: comment } */
   yesNoRemarks: jsonb('yes_no_remarks').$type<Record<string, string> | null>(),
 
+  /** Explicit complete flag — set when user confirms Complete Screening (even with blanks) */
+  assessmentComplete: boolean('assessment_complete').default(false).notNull(),
+
   // Legacy columns retained so existing rows migrate without data loss
   undernutritionClass: varchar('undernutrition_class', { length: 50 }),
   overweightClass: varchar('overweight_class', { length: 50 }),

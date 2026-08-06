@@ -25,10 +25,11 @@ import {
   CONCENTRATION_OPTIONS,
   HAND_HYGIENE_OPTIONS,
   isRecordComplete,
+  getMissingScreeningFields,
   computeScreeningScores,
   computeBpClass,
 } from '@wish2care/shared';
-import type { HealthRecordPartial } from '@wish2care/shared';
+import type { HealthRecordPartial, MissingSectionFields } from '@wish2care/shared';
 import { fetchApi } from '../lib/api';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useAuth } from '../hooks/useAuth';
@@ -184,6 +185,8 @@ export function StudentFormPage() {
   const studentId = parseInt(id || '0', 10);
   const [activeStep, setActiveStep] = useState(1);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+  const [showMissingConfirm, setShowMissingConfirm] = useState(false);
+  const [missingSections, setMissingSections] = useState<MissingSectionFields[]>([]);
   const [isCompleting, setIsCompleting] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -199,7 +202,7 @@ export function StudentFormPage() {
   const form = useForm<HealthRecordPartial>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(healthRecordPartialSchema as any),
-    defaultValues: { studentId, yesNoRemarks: {} },
+    defaultValues: { studentId, yesNoRemarks: {}, assessmentComplete: false },
     mode: 'onTouched',
   });
 
@@ -218,6 +221,7 @@ export function StudentFormPage() {
       ...(hr || {}),
       studentId,
       yesNoRemarks: hr?.yesNoRemarks || {},
+      assessmentComplete: hr?.assessmentComplete === true,
     });
   }, [data, dataUpdatedAt, form, studentId, isSaving]);
 
@@ -286,19 +290,31 @@ export function StudentFormPage() {
               ? 'text-red-600'
               : undefined;
 
-  const handleCompleteScreening = async () => {
+  const finalizeAssessment = async () => {
     setIsCompleting(true);
     try {
+      form.setValue('assessmentComplete', true, { shouldDirty: true });
       const saved = await forceSave();
       if (!saved) return;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['student', studentId] }),
         queryClient.invalidateQueries({ queryKey: ['students'] }),
       ]);
+      setShowMissingConfirm(false);
       setShowSubmitSuccess(true);
     } finally {
       setIsCompleting(false);
     }
+  };
+
+  const handleCompleteScreening = async () => {
+    const missing = getMissingScreeningFields(form.getValues());
+    if (missing.length > 0) {
+      setMissingSections(missing);
+      setShowMissingConfirm(true);
+      return;
+    }
+    await finalizeAssessment();
   };
 
   const goToStudentList = () => {
@@ -308,6 +324,67 @@ export function StudentFormPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-32">
+      {showMissingConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-gray-100 overflow-hidden"
+          >
+            <div className="p-6 space-y-4 border-b border-gray-100">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold text-gray-900">Missing answers</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Some fields are still blank. Review them below, or proceed to mark this assessment
+                    complete anyway.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="max-h-[40vh] overflow-y-auto px-6 py-4 space-y-4">
+              {missingSections.map((section) => (
+                <div key={section.sectionId} className="space-y-1.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    {section.sectionTitle}
+                  </p>
+                  <p className="text-sm text-gray-800 leading-relaxed">{section.fields.join(', ')}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-6 pt-2 flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                disabled={isCompleting}
+                onClick={() => setShowMissingConfirm(false)}
+                className="flex-1 h-11 rounded-xl font-semibold border-gray-200"
+              >
+                Go back
+              </Button>
+              <Button
+                disabled={isCompleting}
+                onClick={() => void finalizeAssessment()}
+                className="flex-1 h-11 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {isCompleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Completing...
+                  </>
+                ) : (
+                  'Proceed anyway'
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {showSubmitSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/50 backdrop-blur-sm">
           <motion.div

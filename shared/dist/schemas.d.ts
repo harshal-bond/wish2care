@@ -243,6 +243,8 @@ export declare const healthRecordSchema: z.ZodObject<{
     visionScreening: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     /** Remarks keyed by Yes/No field name — only used when that answer is Yes */
     yesNoRemarks: z.ZodEffects<z.ZodUnion<[z.ZodRecord<z.ZodString, z.ZodString>, z.ZodNull, z.ZodUndefined]>, Record<string, string> | null, Record<string, string> | null | undefined>;
+    /** Explicitly marked complete (allows incomplete fields after user confirmation) */
+    assessmentComplete: z.ZodEffects<z.ZodUnion<[z.ZodBoolean, z.ZodNull, z.ZodUndefined]>, boolean, boolean | null | undefined>;
 }, "strip", z.ZodTypeAny, {
     studentId: number;
     height: number | null;
@@ -271,6 +273,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     concentration: "Good" | "Average" | "Poor" | null;
     handHygiene: "Good" | "Average" | "Poor" | null;
     yesNoRemarks: Record<string, string> | null;
+    assessmentComplete: boolean;
     chronicDisease?: YesNoVal | undefined;
     frequentFever?: YesNoVal | undefined;
     weightLoss?: YesNoVal | undefined;
@@ -339,6 +342,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     concentration?: "" | "Good" | "Average" | "Poor" | null | undefined;
     handHygiene?: "" | "Good" | "Average" | "Poor" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
+    assessmentComplete?: boolean | null | undefined;
 }>;
 export declare const healthRecordPartialSchema: z.ZodObject<{
     chronicDisease: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
@@ -388,6 +392,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     concentration: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>>;
     handHygiene: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>>;
     yesNoRemarks: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodRecord<z.ZodString, z.ZodString>, z.ZodNull, z.ZodUndefined]>, Record<string, string> | null, Record<string, string> | null | undefined>>;
+    assessmentComplete: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodBoolean, z.ZodNull, z.ZodUndefined]>, boolean, boolean | null | undefined>>;
 }, "strip", z.ZodTypeAny, {
     studentId: number;
     chronicDisease?: YesNoVal | undefined;
@@ -436,6 +441,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     concentration?: "Good" | "Average" | "Poor" | null | undefined;
     handHygiene?: "Good" | "Average" | "Poor" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
+    assessmentComplete?: boolean | undefined;
 }, {
     studentId: number;
     chronicDisease?: unknown;
@@ -484,6 +490,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     concentration?: "" | "Good" | "Average" | "Poor" | null | undefined;
     handHygiene?: "" | "Good" | "Average" | "Poor" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
+    assessmentComplete?: boolean | null | undefined;
 }>;
 export declare const exportRequestSchema: z.ZodObject<{
     schoolId: z.ZodOptional<z.ZodNumber>;

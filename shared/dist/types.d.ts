@@ -98,6 +98,8 @@ export interface HealthRecord {
     visionScreening: string | null;
     /** Remarks for Yes answers on Yes/No fields */
     yesNoRemarks: Record<string, string> | null;
+    /** Marked complete by the fieldworker (may still have blank fields) */
+    assessmentComplete: boolean;
     createdAt: string | Date;
     updatedAt: string | Date;
 }
@@ -138,6 +140,13 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     page: number;
     limit: number;
 }
+export type MissingSectionFields = {
+    sectionId: string;
+    sectionTitle: string;
+    fields: string[];
+};
+/** Per-section list of unanswered screening fields (human-readable labels). */
+export declare function getMissingScreeningFields(record: Partial<HealthRecord>): MissingSectionFields[];
 /**
  * Returns the count of completed screening sections (out of 8: A, BP, B–G)
  * matching domain completeness (all inputs present in a section).
