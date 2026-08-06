@@ -15,15 +15,6 @@ studentsRoutes.get('/', async (c) => {
   const search = c.req.query('search');
   const schoolId = c.req.query('schoolId');
 
-  let baseQuery = db.select({
-    student: students,
-    healthRecord: healthRecords,
-    school: schools
-  })
-  .from(students)
-  .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
-  .leftJoin(schools, eq(students.schoolId, schools.id));
-
   const conditions = [];
 
   // Role based filtering
@@ -44,12 +35,19 @@ studentsRoutes.get('/', async (c) => {
     );
   }
 
-  if (conditions.length > 0) {
-    baseQuery.where(and(...conditions));
-  }
-
   try {
-    const results = await baseQuery;
+    const results = await db
+      .select({
+        student: students,
+        healthRecord: healthRecords,
+        school: schools,
+      })
+      .from(students)
+      .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+      .leftJoin(schools, eq(students.schoolId, schools.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(students.name)
+      .limit(search ? 100 : 2000);
     
     // Map to response format
     const mappedResults = results.map(row => {

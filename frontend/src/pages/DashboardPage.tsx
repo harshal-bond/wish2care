@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
@@ -19,7 +19,8 @@ export function DashboardPage() {
   
   const { data, isLoading } = useQuery({
     queryKey: ['students'],
-    queryFn: () => fetchApi('/students')
+    queryFn: () => fetchApi('/students'),
+    staleTime: 60_000,
   });
 
   if (isLoading) {
@@ -35,10 +36,11 @@ export function DashboardPage() {
   const pending = students.length - completed;
   const progress = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
 
-  // Filter students for quick search
+  // Filter students for quick search (deferred so typing stays responsive)
+  const deferredSearch = useDeferredValue(search);
   const filteredStudents = students.filter((student: any) =>
-    student.name.toLowerCase().includes(search.toLowerCase()) ||
-    student.studentCode.toLowerCase().includes(search.toLowerCase())
+    student.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+    student.studentCode.toLowerCase().includes(deferredSearch.toLowerCase())
   ).slice(0, 4);
 
   // Greet message based on local time
