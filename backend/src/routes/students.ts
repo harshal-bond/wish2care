@@ -36,7 +36,9 @@ studentsRoutes.get('/', async (c) => {
   }
 
   try {
-    const results = await db
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    let query = db
       .select({
         student: students,
         healthRecord: healthRecords,
@@ -45,9 +47,16 @@ studentsRoutes.get('/', async (c) => {
       .from(students)
       .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
       .leftJoin(schools, eq(students.schoolId, schools.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(whereClause)
       .orderBy(students.name)
-      .limit(search ? 100 : 2000);
+      .$dynamic();
+
+    // Cap only when searching; full list is needed for accurate dashboard counts
+    if (search) {
+      query = query.limit(200);
+    }
+
+    const results = await query;
     
     // Map to response format
     const mappedResults = results.map(row => {
