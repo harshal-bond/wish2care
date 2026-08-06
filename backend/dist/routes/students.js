@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 import { studentSchema, studentMentalHealthSchema, isRecordComplete, countCompletedDomains } from '@wish2care/shared';
-import { eq, like, or, and, desc, count } from 'drizzle-orm';
+import { eq, ilike, or, and, desc, count } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/parseStudentExcel.js';
 export const studentsRoutes = new Hono();
 studentsRoutes.use('/*', authMiddleware);
@@ -30,7 +30,7 @@ studentsRoutes.get('/', async (c) => {
     // Search
     if (search) {
         const searchPattern = `%${search}%`;
-        conditions.push(or(like(students.name, searchPattern), like(students.studentCode, searchPattern)));
+        conditions.push(or(ilike(students.name, searchPattern), ilike(students.studentCode, searchPattern)));
     }
     if (conditions.length > 0) {
         baseQuery.where(and(...conditions));

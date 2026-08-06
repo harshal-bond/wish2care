@@ -44,6 +44,7 @@ export const students = pgTable('students', {
 });
 
 // ── Health Records (1-to-1 with Student) ───────────────────────────────
+// Aligned with STUDENT SCREENING Sections A–G. Scores are computed in app/Excel.
 export const healthRecords = pgTable('health_records', {
   id: serial('id').primaryKey(),
   studentId: integer('student_id')
@@ -52,47 +53,79 @@ export const healthRecords = pgTable('health_records', {
     .references(() => students.id, { onDelete: 'cascade' }),
   date: varchar('date', { length: 50 }), // YYYY-MM-DD format
 
-  // Domain 1: Undernutrition
+  // Section A – Anthropometry (reuses height/weight/waist_circumference)
   height: real('height'),
   weight: real('weight'),
+  muac: real('muac'),
+  waistCircumference: real('waist_circumference'),
+
+  // Section B – Diet
+  breakfast: varchar('breakfast', { length: 50 }),
+  fruitIntake: varchar('fruit_intake', { length: 50 }),
+  vegetables: varchar('vegetables', { length: 50 }),
+  proteinIntake: varchar('protein_intake', { length: 50 }),
+  junkFood: varchar('junk_food', { length: 50 }),
+  sugaryDrinks: varchar('sugary_drinks', { length: 50 }),
+  waterIntake: varchar('water_intake', { length: 50 }),
+
+  // Section C – Lifestyle
+  physicalActivity: varchar('physical_activity', { length: 50 }),
+  screenTime: varchar('screen_time', { length: 50 }),
+  outdoorPlay: varchar('outdoor_play', { length: 50 }),
+  sleepHours: varchar('sleep_hours', { length: 50 }),
+  smoking: varchar('smoking', { length: 50 }),
+  alcohol: varchar('alcohol', { length: 50 }),
+
+  // Section D – Medical History
+  chronicDisease: varchar('chronic_disease', { length: 10 }),
+  frequentFever: varchar('frequent_fever', { length: 10 }),
+  weightLoss: varchar('weight_loss', { length: 10 }),
+  poorAppetite: varchar('poor_appetite', { length: 10 }),
+  repeatedInfection: varchar('repeated_infection', { length: 10 }),
+  hospitalisation: varchar('hospitalisation', { length: 10 }),
+  medication: varchar('medication', { length: 10 }),
+
+  // Section E – Mental Wellness
+  stress: varchar('stress', { length: 50 }),
+  mood: varchar('mood', { length: 50 }),
+  concentration: varchar('concentration', { length: 50 }),
+  bullying: varchar('bullying', { length: 10 }),
+
+  // Section F – Clinical Observation
+  pallor: varchar('pallor', { length: 10 }),
+  dentalCaries: varchar('dental_caries', { length: 10 }),
+  poorOralHygiene: varchar('poor_oral_hygiene', { length: 10 }),
+  visionProblem: varchar('vision_problem', { length: 10 }),
+  hairChanges: varchar('hair_changes', { length: 10 }),
+  skinChanges: varchar('skin_changes', { length: 10 }),
+
+  // Section G – Preventive Health
+  vaccinationComplete: varchar('vaccination_complete', { length: 20 }),
+  deworming: varchar('deworming', { length: 20 }),
+  handHygiene: varchar('hand_hygiene', { length: 50 }),
+  dentalCheckup: varchar('dental_checkup', { length: 10 }),
+  visionScreening: varchar('vision_screening', { length: 10 }),
+
+  // Legacy columns retained so existing rows migrate without data loss
   undernutritionClass: varchar('undernutrition_class', { length: 50 }),
-
-  // Domain 2: Overweight/Obesity
   overweightClass: varchar('overweight_class', { length: 50 }),
-
-  // Domain 3: Anaemia
   hb: real('hb'),
   anaemiaClass: varchar('anaemia_class', { length: 50 }),
-
-  // Domain 4: Blood Pressure
   systolic: real('systolic'),
   diastolic: real('diastolic'),
   bpClass: varchar('bp_class', { length: 50 }),
-
-  // Domain 5: Metabolic Risk
-  waistCircumference: real('waist_circumference'),
   familyHxCount: integer('family_hx_count'),
   metabolicRiskClass: varchar('metabolic_risk_class', { length: 50 }),
-
-  // Domain 6: Vision
   rightEyeAcuity: real('right_eye_acuity'),
   leftEyeAcuity: real('left_eye_acuity'),
-
-  // Domain 7: Oral Health
   decayedTeethCount: integer('decayed_teeth_count'),
-
-  // Domain 8: Respiratory
-  wheezeSymptom: varchar('wheeze_symptom', { length: 10 }), // 'Yes' | 'No'
+  wheezeSymptom: varchar('wheeze_symptom', { length: 10 }),
   measuredPefr: real('measured_pefr'),
   predictedPefr: real('predicted_pefr'),
-
-  // TB Red-Flag Screen
   tbCough: varchar('tb_cough', { length: 10 }),
   tbFever: varchar('tb_fever', { length: 10 }),
   tbNightSweats: varchar('tb_night_sweats', { length: 10 }),
   tbWeightLoss: varchar('tb_weight_loss', { length: 10 }),
-
-  // Mental Wellbeing
   mentalWellbeingResult: varchar('mental_wellbeing_result', { length: 50 }),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),

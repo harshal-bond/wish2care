@@ -91,8 +91,8 @@ export function StudentProfilePage() {
               <Heart className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Clinical Health Record</h2>
-              <p className="text-sm text-gray-500">Latest physical assessment data</p>
+              <h2 className="text-lg font-bold text-gray-900">Student Screening</h2>
+              <p className="text-sm text-gray-500">Latest SAFE screening assessment</p>
             </div>
           </div>
           
@@ -106,26 +106,28 @@ export function StudentProfilePage() {
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-xs text-gray-500 uppercase font-semibold">BMI Class</p>
-                  <p className="font-bold text-gray-900 mt-1">{healthRecord.overweightClass || '--'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Blood Pressure</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">MUAC / Waist</p>
                   <p className="font-bold text-gray-900 mt-1">
-                    {healthRecord.systolic ? `${healthRecord.systolic}/${healthRecord.diastolic}` : '--'}
+                    {healthRecord.muac != null ? `${healthRecord.muac} cm` : '--'} / {healthRecord.waistCircumference != null ? `${healthRecord.waistCircumference} cm` : '--'}
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Haemoglobin</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Diet / Lifestyle</p>
                   <p className="font-bold text-gray-900 mt-1">
-                    {healthRecord.hb ? `${healthRecord.hb} g/dL` : '--'}
+                    {healthRecord.breakfast || '--'} / {healthRecord.physicalActivity || '--'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Mental Wellness</p>
+                  <p className="font-bold text-gray-900 mt-1">
+                    {healthRecord.stress || '--'} · {healthRecord.mood || '--'}
                   </p>
                 </div>
               </div>
               <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">TB Screening Flag</p>
-                <p className="font-bold text-red-600">
-                  {[healthRecord.tbCough, healthRecord.tbFever, healthRecord.tbNightSweats, healthRecord.tbWeightLoss].includes('Yes') ? 'FLAGGED' : 'Clear'}
+                <p className="text-sm font-semibold text-gray-700">Chronic Disease / Referral Risk</p>
+                <p className={`font-bold ${healthRecord.chronicDisease === 'Yes' || healthRecord.weightLoss === 'Yes' ? 'text-red-600' : 'text-emerald-700'}`}>
+                  {healthRecord.chronicDisease === 'Yes' || healthRecord.weightLoss === 'Yes' ? 'FLAGGED' : 'Clear'}
                 </p>
               </div>
               <Button onClick={() => navigate(`/students/${studentId}/health-record`)} variant="outline" className="w-full mt-4 rounded-xl">

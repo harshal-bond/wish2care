@@ -1,37 +1,71 @@
 // ── Completion check helpers ───────────────────────────────────────────
+const filled = (v) => v !== null && v !== undefined && v !== '';
 /**
- * Returns the count of completed scored domains (out of 8) based on
- * the presence of the required input fields for each domain.
+ * Returns the count of completed screening sections (out of 7: A–G)
+ * matching Excel domain completeness (all inputs present in a section).
  */
 export function countCompletedDomains(record) {
     let count = 0;
-    // Domain 1: Undernutrition — needs height, weight, and classification
-    if (record.height != null && record.weight != null && record.undernutritionClass)
+    // A – Anthropometry
+    if (filled(record.height) && filled(record.weight) && filled(record.muac) && filled(record.waistCircumference)) {
         count++;
-    // Domain 2: Overweight/Obesity — needs classification
-    if (record.overweightClass)
+    }
+    // B – Diet
+    if (filled(record.breakfast) &&
+        filled(record.fruitIntake) &&
+        filled(record.vegetables) &&
+        filled(record.proteinIntake) &&
+        filled(record.junkFood) &&
+        filled(record.sugaryDrinks) &&
+        filled(record.waterIntake)) {
         count++;
-    // Domain 3: Anaemia — needs Hb and classification
-    if (record.hb != null && record.anaemiaClass)
+    }
+    // C – Lifestyle
+    if (filled(record.physicalActivity) &&
+        filled(record.screenTime) &&
+        filled(record.outdoorPlay) &&
+        filled(record.sleepHours) &&
+        filled(record.smoking) &&
+        filled(record.alcohol)) {
         count++;
-    // Domain 4: Blood Pressure — needs systolic, diastolic, classification
-    if (record.systolic != null && record.diastolic != null && record.bpClass)
+    }
+    // D – Medical History
+    if (filled(record.chronicDisease) &&
+        filled(record.frequentFever) &&
+        filled(record.weightLoss) &&
+        filled(record.poorAppetite) &&
+        filled(record.repeatedInfection) &&
+        filled(record.hospitalisation) &&
+        filled(record.medication)) {
         count++;
-    // Domain 5: Metabolic Risk — needs waist, familyHx, classification
-    if (record.waistCircumference != null && record.metabolicRiskClass)
+    }
+    // E – Mental Wellness
+    if (filled(record.stress) &&
+        filled(record.mood) &&
+        filled(record.concentration) &&
+        filled(record.bullying)) {
         count++;
-    // Domain 6: Vision — needs both eye acuities (classification auto-computed)
-    if (record.rightEyeAcuity != null && record.leftEyeAcuity != null)
+    }
+    // F – Clinical Observation
+    if (filled(record.pallor) &&
+        filled(record.dentalCaries) &&
+        filled(record.poorOralHygiene) &&
+        filled(record.visionProblem) &&
+        filled(record.hairChanges) &&
+        filled(record.skinChanges)) {
         count++;
-    // Domain 7: Oral Health — needs decayed teeth count (classification auto-computed)
-    if (record.decayedTeethCount != null)
+    }
+    // G – Preventive Health
+    if (filled(record.vaccinationComplete) &&
+        filled(record.deworming) &&
+        filled(record.handHygiene) &&
+        filled(record.dentalCheckup) &&
+        filled(record.visionScreening)) {
         count++;
-    // Domain 8: Respiratory — needs wheeze or PEFR data (classification auto-computed)
-    if (record.wheezeSymptom != null || record.measuredPefr != null)
-        count++;
+    }
     return count;
 }
 export function isRecordComplete(record) {
-    return countCompletedDomains(record) === 8;
+    return countCompletedDomains(record) === 7;
 }
 //# sourceMappingURL=types.js.map

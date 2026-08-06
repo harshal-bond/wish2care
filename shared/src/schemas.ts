@@ -1,11 +1,27 @@
 import { z } from 'zod';
 import {
-  CLASSIFICATION,
   GENDER_OPTIONS,
   YES_NO,
-  MENTAL_WELLBEING_OPTIONS,
+  YES_PARTIAL_NO,
   ROLES,
   VALIDATION_RANGES,
+  BREAKFAST_OPTIONS,
+  FRUIT_INTAKE_OPTIONS,
+  VEGETABLES_OPTIONS,
+  PROTEIN_INTAKE_OPTIONS,
+  JUNK_FOOD_OPTIONS,
+  SUGARY_DRINKS_OPTIONS,
+  WATER_INTAKE_OPTIONS,
+  PHYSICAL_ACTIVITY_OPTIONS,
+  SCREEN_TIME_OPTIONS,
+  OUTDOOR_PLAY_OPTIONS,
+  SLEEP_HOURS_OPTIONS,
+  SMOKING_OPTIONS,
+  ALCOHOL_OPTIONS,
+  STRESS_OPTIONS,
+  MOOD_OPTIONS,
+  CONCENTRATION_OPTIONS,
+  HAND_HYGIENE_OPTIONS,
 } from './constants.js';
 
 export const optionalNumber = () =>
@@ -21,23 +37,19 @@ export const optionalString = () =>
   z.union([z.string(), z.null(), z.undefined()])
     .transform((val): string | null => (val === '' || val == null ? null : val));
 
-// ── Classification enum ────────────────────────────────────────────────
-type ClassificationVal = typeof CLASSIFICATION.NORMAL | typeof CLASSIFICATION.CAUTION | typeof CLASSIFICATION.HIGH_RISK | null;
-const classificationEnum = z.union([
-  z.enum([CLASSIFICATION.NORMAL, CLASSIFICATION.CAUTION, CLASSIFICATION.HIGH_RISK]),
-  z.literal(''),
-  z.null(),
-  z.undefined()
-]).transform((val): ClassificationVal => (val === '' || val == null ? null : val));
+/** Optional enum that accepts '' / null / undefined → null */
+function optionalEnum<T extends readonly [string, ...string[]]>(options: T) {
+  type Val = T[number] | null;
+  return z
+    .union([z.enum(options), z.literal(''), z.null(), z.undefined()])
+    .transform((val): Val => (val === '' || val == null ? null : val));
+}
 
-type YesNoVal = typeof YES_NO[number] | null;
-const yesNoEnum = z.union([
-  z.enum(YES_NO),
-  z.literal(''),
-  z.null(),
-  z.undefined()
-]).transform((val): YesNoVal => (val === '' || val == null ? null : val));
+type YesNoVal = (typeof YES_NO)[number] | null;
+const yesNoEnum = optionalEnum(YES_NO) as z.ZodType<YesNoVal, z.ZodTypeDef, unknown>;
 
+type YesPartialNoVal = (typeof YES_PARTIAL_NO)[number] | null;
+const yesPartialNoEnum = optionalEnum(YES_PARTIAL_NO) as z.ZodType<YesPartialNoVal, z.ZodTypeDef, unknown>;
 
 // ── Auth schemas ───────────────────────────────────────────────────────
 export const loginSchema = z.object({
@@ -117,53 +129,63 @@ export const studentSchoolUploadRowSchema = z.object({
 });
 
 // ── Health record schema ───────────────────────────────────────────────
-// These are the 26 raw input fields from the Excel workbook
+// Input fields from STUDENT SCREENING (Sections A–G). Scores are computed, not stored.
 export const healthRecordSchema = z.object({
   studentId: z.coerce.number().int().positive(),
   date: z.string().optional().nullable(),
 
-  // Domain 1: Undernutrition
+  // Section A – Anthropometry
   height: optionalNumber(),
   weight: optionalNumber(),
-  undernutritionClass: classificationEnum.optional().nullable(),
-
-  // Domain 2: Overweight/Obesity
-  overweightClass: classificationEnum.optional().nullable(),
-
-  // Domain 3: Anaemia
-  hb: optionalNumber(),
-  anaemiaClass: classificationEnum.optional().nullable(),
-
-  // Domain 4: Blood Pressure
-  systolic: optionalNumber(),
-  diastolic: optionalNumber(),
-  bpClass: classificationEnum.optional().nullable(),
-
-  // Domain 5: Metabolic Risk
+  muac: optionalNumber(),
   waistCircumference: optionalNumber(),
-  familyHxCount: optionalNumber(),
-  metabolicRiskClass: classificationEnum.optional().nullable(),
 
-  // Domain 6: Vision (classification auto-computed by Excel)
-  rightEyeAcuity: optionalNumber(),
-  leftEyeAcuity: optionalNumber(),
+  // Section B – Diet
+  breakfast: optionalEnum(BREAKFAST_OPTIONS),
+  fruitIntake: optionalEnum(FRUIT_INTAKE_OPTIONS),
+  vegetables: optionalEnum(VEGETABLES_OPTIONS),
+  proteinIntake: optionalEnum(PROTEIN_INTAKE_OPTIONS),
+  junkFood: optionalEnum(JUNK_FOOD_OPTIONS),
+  sugaryDrinks: optionalEnum(SUGARY_DRINKS_OPTIONS),
+  waterIntake: optionalEnum(WATER_INTAKE_OPTIONS),
 
-  // Domain 7: Oral Health (classification auto-computed by Excel)
-  decayedTeethCount: optionalNumber(),
+  // Section C – Lifestyle
+  physicalActivity: optionalEnum(PHYSICAL_ACTIVITY_OPTIONS),
+  screenTime: optionalEnum(SCREEN_TIME_OPTIONS),
+  outdoorPlay: optionalEnum(OUTDOOR_PLAY_OPTIONS),
+  sleepHours: optionalEnum(SLEEP_HOURS_OPTIONS),
+  smoking: optionalEnum(SMOKING_OPTIONS),
+  alcohol: optionalEnum(ALCOHOL_OPTIONS),
 
-  // Domain 8: Respiratory (classification auto-computed by Excel)
-  wheezeSymptom: yesNoEnum.optional().nullable(),
-  measuredPefr: optionalNumber(),
-  predictedPefr: optionalNumber(),
+  // Section D – Medical History
+  chronicDisease: yesNoEnum.optional().nullable(),
+  frequentFever: yesNoEnum.optional().nullable(),
+  weightLoss: yesNoEnum.optional().nullable(),
+  poorAppetite: yesNoEnum.optional().nullable(),
+  repeatedInfection: yesNoEnum.optional().nullable(),
+  hospitalisation: yesNoEnum.optional().nullable(),
+  medication: yesNoEnum.optional().nullable(),
 
-  // TB Red-Flag Screen
-  tbCough: yesNoEnum.optional().nullable(),
-  tbFever: yesNoEnum.optional().nullable(),
-  tbNightSweats: yesNoEnum.optional().nullable(),
-  tbWeightLoss: yesNoEnum.optional().nullable(),
+  // Section E – Mental Wellness
+  stress: optionalEnum(STRESS_OPTIONS),
+  mood: optionalEnum(MOOD_OPTIONS),
+  concentration: optionalEnum(CONCENTRATION_OPTIONS),
+  bullying: yesNoEnum.optional().nullable(),
 
-  // Mental Wellbeing Red-Flag
-  mentalWellbeingResult: z.union([z.enum(MENTAL_WELLBEING_OPTIONS), z.literal(''), z.null(), z.undefined()]).transform((val): typeof MENTAL_WELLBEING_OPTIONS[number] | null => (val === '' || val == null ? null : val)),
+  // Section F – Clinical Observation
+  pallor: yesNoEnum.optional().nullable(),
+  dentalCaries: yesNoEnum.optional().nullable(),
+  poorOralHygiene: yesNoEnum.optional().nullable(),
+  visionProblem: yesNoEnum.optional().nullable(),
+  hairChanges: yesNoEnum.optional().nullable(),
+  skinChanges: yesNoEnum.optional().nullable(),
+
+  // Section G – Preventive Health
+  vaccinationComplete: yesPartialNoEnum.optional().nullable(),
+  deworming: yesPartialNoEnum.optional().nullable(),
+  handHygiene: optionalEnum(HAND_HYGIENE_OPTIONS),
+  dentalCheckup: yesNoEnum.optional().nullable(),
+  visionScreening: yesNoEnum.optional().nullable(),
 });
 
 // ── Partial health record for autosave ─────────────────────────────────
@@ -187,9 +209,9 @@ export const validationWarnings = z.object({
     (v) => !v || (v >= VALIDATION_RANGES.weight.min && v <= VALIDATION_RANGES.weight.max),
     { message: `Weight should be between ${VALIDATION_RANGES.weight.min}–${VALIDATION_RANGES.weight.max} kg` }
   ),
-  hb: optionalNumber().refine(
-    (v) => !v || (v >= VALIDATION_RANGES.hb.min && v <= VALIDATION_RANGES.hb.max),
-    { message: `Hb should be between ${VALIDATION_RANGES.hb.min}–${VALIDATION_RANGES.hb.max} g/dL` }
+  muac: optionalNumber().refine(
+    (v) => !v || (v >= VALIDATION_RANGES.muac.min && v <= VALIDATION_RANGES.muac.max),
+    { message: `MUAC should be between ${VALIDATION_RANGES.muac.min}–${VALIDATION_RANGES.muac.max} cm` }
   ),
 });
 

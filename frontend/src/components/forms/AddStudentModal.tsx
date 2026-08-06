@@ -1,17 +1,18 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchApi } from '../../lib/api';
 import { Input, Button } from '../ui';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { Loader2, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v4';
 
 // ── Local form schema – plain types, no transforms, avoids shared schema inference issues ──
 const addStudentFormSchema = z.object({
   name: z.string().min(1, 'Student name is required'),
-  age: z.number({ message: 'Age is required' }).int().min(3).max(25),
+  age: z.number({ message: 'Age is required' }).int().gt(1).lt(100),
   gender: z.enum(['M', 'F']),
   schoolId: z.number({ message: 'Please select a school' }).int().positive('Please select a school'),
   studentCode: z.string().optional(),
@@ -29,6 +30,37 @@ const addStudentFormSchema = z.object({
 });
 
 type FormValues = z.infer<typeof addStudentFormSchema>;
+
+/** Age in completed years from a YYYY-MM-DD (or parseable) date of birth. */
+function ageFromDateOfBirth(dob: string): number | null {
+  const trimmed = dob?.trim();
+  if (!trimmed) return null;
+
+  let birth: Date | null = null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [y, m, d] = trimmed.split('-').map(Number);
+    birth = new Date(y, m - 1, d);
+  } else if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+    const [d, m, y] = trimmed.split('-').map(Number);
+    birth = new Date(y, m - 1, d);
+  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    const [d, m, y] = trimmed.split('/').map(Number);
+    birth = new Date(y, m - 1, d);
+  } else {
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) birth = parsed;
+  }
+
+  if (!birth || Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? age : null;
+}
 
 export function AddStudentModal({
   isOpen,
@@ -57,6 +89,7 @@ export function AddStudentModal({
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors, isValid },
   } = useForm<FormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,6 +101,14 @@ export function AddStudentModal({
     },
     mode: 'onTouched',
   });
+
+  const dateOfBirth = useWatch({ control, name: 'dateOfBirth' });
+
+  useEffect(() => {
+    const age = ageFromDateOfBirth(dateOfBirth || '');
+    if (age == null) return;
+    setValue('age', age, { shouldValidate: true, shouldDirty: true });
+  }, [dateOfBirth, setValue]);
 
   const addMutation = useMutation({
     mutationFn: async (data: FormValues) => {
@@ -131,6 +172,16 @@ export function AddStudentModal({
                 </div>
 
                 <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">Date of Birth</label>
+                  <Input
+                    type="date"
+                    {...register('dateOfBirth')}
+                    className="rounded-xl h-11"
+                  />
+                  <p className="text-[11px] text-gray-400">Age fills automatically from DOB.</p>
+                </div>
+
+                <div className="space-y-2">
                   <label className="text-sm font-semibold text-gray-700">
                     Age <span className="text-red-500">*</span>
                   </label>
@@ -191,14 +242,6 @@ export function AddStudentModal({
                   <Input
                     {...register('studentCode')}
                     placeholder="Auto-generated if empty"
-                    className="rounded-xl h-11"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700">Date of Birth</label>
-                  <Input
-                    {...register('dateOfBirth')}
-                    placeholder="DD-MM-YYYY"
                     className="rounded-xl h-11"
                   />
                 </div>

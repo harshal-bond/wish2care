@@ -35,6 +35,17 @@ export interface Student {
     schoolId: number;
     school?: School;
     healthRecord?: HealthRecord | null;
+    dateOfBirth?: string | null;
+    bloodGroup?: string | null;
+    email?: string | null;
+    mobileNo?: string | null;
+    fatherMobileNo?: string | null;
+    nomineeName?: string | null;
+    relationship?: string | null;
+    courseName?: string | null;
+    collegeStream?: string | null;
+    localAddress?: string | null;
+    area?: string | null;
     createdAt: string | Date;
 }
 export interface HealthRecord {
@@ -43,27 +54,43 @@ export interface HealthRecord {
     date: string | null;
     height: number | null;
     weight: number | null;
-    undernutritionClass: string | null;
-    overweightClass: string | null;
-    hb: number | null;
-    anaemiaClass: string | null;
-    systolic: number | null;
-    diastolic: number | null;
-    bpClass: string | null;
+    muac: number | null;
     waistCircumference: number | null;
-    familyHxCount: number | null;
-    metabolicRiskClass: string | null;
-    rightEyeAcuity: number | null;
-    leftEyeAcuity: number | null;
-    decayedTeethCount: number | null;
-    wheezeSymptom: string | null;
-    measuredPefr: number | null;
-    predictedPefr: number | null;
-    tbCough: string | null;
-    tbFever: string | null;
-    tbNightSweats: string | null;
-    tbWeightLoss: string | null;
-    mentalWellbeingResult: string | null;
+    breakfast: string | null;
+    fruitIntake: string | null;
+    vegetables: string | null;
+    proteinIntake: string | null;
+    junkFood: string | null;
+    sugaryDrinks: string | null;
+    waterIntake: string | null;
+    physicalActivity: string | null;
+    screenTime: string | null;
+    outdoorPlay: string | null;
+    sleepHours: string | null;
+    smoking: string | null;
+    alcohol: string | null;
+    chronicDisease: string | null;
+    frequentFever: string | null;
+    weightLoss: string | null;
+    poorAppetite: string | null;
+    repeatedInfection: string | null;
+    hospitalisation: string | null;
+    medication: string | null;
+    stress: string | null;
+    mood: string | null;
+    concentration: string | null;
+    bullying: string | null;
+    pallor: string | null;
+    dentalCaries: string | null;
+    poorOralHygiene: string | null;
+    visionProblem: string | null;
+    hairChanges: string | null;
+    skinChanges: string | null;
+    vaccinationComplete: string | null;
+    deworming: string | null;
+    handHygiene: string | null;
+    dentalCheckup: string | null;
+    visionScreening: string | null;
     createdAt: string | Date;
     updatedAt: string | Date;
 }
@@ -105,8 +132,8 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     limit: number;
 }
 /**
- * Returns the count of completed scored domains (out of 8) based on
- * the presence of the required input fields for each domain.
+ * Returns the count of completed screening sections (out of 7: A–G)
+ * matching Excel domain completeness (all inputs present in a section).
  */
 export declare function countCompletedDomains(record: Partial<HealthRecord>): number;
 export declare function isRecordComplete(record: Partial<HealthRecord>): boolean;
