@@ -27,9 +27,10 @@ export function useAutoSave({
 
   useEffect(() => {
     const subscription = form.watch((_value, { type }) => {
-      // type is undefined if programmatic change, skip auto-save on programmatic
-      if (type === undefined) return;
-      
+      // Skip purely programmatic loads (e.g. form.reset). Allow setValue that dirties the form
+      // (used for Yes/No remarks) so those still autosave.
+      if (type === undefined && !form.formState.isDirty) return;
+
       const currentValues = form.getValues();
       const currentPayload = JSON.stringify(currentValues);
 

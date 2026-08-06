@@ -656,6 +656,23 @@ export declare const healthRecords: import("drizzle-orm/pg-core").PgTableWithCol
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        randomBloodSugar: import("drizzle-orm/pg-core").PgColumn<{
+            name: "random_blood_sugar";
+            tableName: "health_records";
+            dataType: "number";
+            columnType: "PgReal";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         breakfast: import("drizzle-orm/pg-core").PgColumn<{
             name: "breakfast";
             tableName: "health_records";
@@ -1226,6 +1243,25 @@ export declare const healthRecords: import("drizzle-orm/pg-core").PgTableWithCol
         }, {}, {
             length: 10;
         }>;
+        clubbing: import("drizzle-orm/pg-core").PgColumn<{
+            name: "clubbing";
+            tableName: "health_records";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 10;
+        }>;
         vaccinationComplete: import("drizzle-orm/pg-core").PgColumn<{
             name: "vaccination_complete";
             tableName: "health_records";
@@ -1320,6 +1356,25 @@ export declare const healthRecords: import("drizzle-orm/pg-core").PgTableWithCol
             generated: undefined;
         }, {}, {
             length: 10;
+        }>;
+        yesNoRemarks: import("drizzle-orm/pg-core").PgColumn<{
+            name: "yes_no_remarks";
+            tableName: "health_records";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string> | null;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string> | null;
         }>;
         undernutritionClass: import("drizzle-orm/pg-core").PgColumn<{
             name: "undernutrition_class";

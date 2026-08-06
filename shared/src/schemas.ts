@@ -22,6 +22,7 @@ import {
   MOOD_OPTIONS,
   CONCENTRATION_OPTIONS,
   HAND_HYGIENE_OPTIONS,
+  BP_CLASS_OPTIONS,
 } from './constants.js';
 
 export const optionalNumber = () =>
@@ -140,6 +141,12 @@ export const healthRecordSchema = z.object({
   muac: optionalNumber(),
   waistCircumference: optionalNumber(),
 
+  // Blood Pressure & Random Blood Sugar (below Section A)
+  systolic: optionalNumber(),
+  diastolic: optionalNumber(),
+  bpClass: optionalEnum(BP_CLASS_OPTIONS),
+  randomBloodSugar: optionalNumber(),
+
   // Section B – Diet
   breakfast: optionalEnum(BREAKFAST_OPTIONS),
   fruitIntake: optionalEnum(FRUIT_INTAKE_OPTIONS),
@@ -179,6 +186,7 @@ export const healthRecordSchema = z.object({
   visionProblem: yesNoEnum.optional().nullable(),
   hairChanges: yesNoEnum.optional().nullable(),
   skinChanges: yesNoEnum.optional().nullable(),
+  clubbing: yesNoEnum.optional().nullable(),
 
   // Section G – Preventive Health
   vaccinationComplete: yesPartialNoEnum.optional().nullable(),
@@ -186,6 +194,14 @@ export const healthRecordSchema = z.object({
   handHygiene: optionalEnum(HAND_HYGIENE_OPTIONS),
   dentalCheckup: yesNoEnum.optional().nullable(),
   visionScreening: yesNoEnum.optional().nullable(),
+
+  /** Remarks keyed by Yes/No field name — only used when that answer is Yes */
+  yesNoRemarks: z
+    .union([z.record(z.string(), z.string()), z.null(), z.undefined()])
+    .transform((val): Record<string, string> | null => {
+      if (val == null || typeof val !== 'object') return null;
+      return val;
+    }),
 });
 
 // ── Partial health record for autosave ─────────────────────────────────

@@ -81,7 +81,7 @@ export function StudentsPage() {
                           ) : (
                             <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
                               <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5"></span>
-                              {student._status.completedDomains}/7 Sections
+                              {student._status.completedDomains}/8 Sections
                             </span>
                           )}
                         </div>

@@ -185,7 +185,7 @@ export function DashboardPage() {
 
                 <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                   <span className="text-xs text-gray-500 font-medium">
-                    {lastEditedStudent._status.isComplete ? 'Complete' : `${lastEditedStudent._status.completedDomains}/7 Sections Filled`}
+                    {lastEditedStudent._status.isComplete ? 'Complete' : `${lastEditedStudent._status.completedDomains}/8 Sections Filled`}
                   </span>
                   <Link 
                     to={`/students/${lastEditedStudent.id}`}
@@ -236,7 +236,7 @@ export function DashboardPage() {
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
-                        {student._status.completedDomains}/7 Sections
+                        {student._status.completedDomains}/8 Sections
                       </span>
                     )}
                     <ArrowRight className="h-4 w-4 text-gray-400" />

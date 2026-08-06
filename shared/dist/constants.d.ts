@@ -181,6 +181,10 @@ export declare const SCORING_POINTS: {
         readonly No: 5;
         readonly Yes: 0;
     };
+    readonly clubbing: {
+        readonly No: 5;
+        readonly Yes: 0;
+    };
     readonly vaccinationComplete: {
         readonly Yes: 5;
         readonly Partial: 3;
@@ -229,12 +233,45 @@ export declare const VALIDATION_RANGES: {
         readonly max: 150;
         readonly unit: "cm";
     };
+    readonly systolic: {
+        readonly min: 60;
+        readonly max: 200;
+        readonly unit: "mmHg";
+    };
+    readonly diastolic: {
+        readonly min: 30;
+        readonly max: 130;
+        readonly unit: "mmHg";
+    };
+    readonly randomBloodSugar: {
+        readonly min: 40;
+        readonly max: 600;
+        readonly unit: "mg/dL";
+    };
     readonly age: {
         readonly min: 2;
         readonly max: 99;
         readonly unit: "years";
     };
 };
+export declare const BP_CLASS_OPTIONS: readonly ["Low", "Normal", "High"];
+export type BpClass = (typeof BP_CLASS_OPTIONS)[number];
+/** Normal ranges: Systolic 120–140 mmHg, Diastolic 80–100 mmHg */
+export declare const BP_NORMAL_RANGES: {
+    readonly systolic: {
+        readonly min: 120;
+        readonly max: 140;
+    };
+    readonly diastolic: {
+        readonly min: 80;
+        readonly max: 100;
+    };
+};
+/** Subscore for auto BP class */
+export declare const BP_SUBSCORE_MAP: Record<BpClass, number>;
+/** Yes/No (or Yes/Partial/No) fields that can collect Remarks when answer is Yes */
+export declare const YES_NO_REMARK_FIELDS: readonly ["chronicDisease", "frequentFever", "weightLoss", "poorAppetite", "repeatedInfection", "hospitalisation", "medication", "bullying", "pallor", "dentalCaries", "poorOralHygiene", "visionProblem", "hairChanges", "skinChanges", "clubbing", "vaccinationComplete", "deworming", "dentalCheckup", "visionScreening"];
+export type YesNoRemarkField = (typeof YES_NO_REMARK_FIELDS)[number];
 export declare const EXCEL_COLUMN_MAP: {
     readonly studentCode: "A";
     readonly date: "B";

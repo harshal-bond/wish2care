@@ -26,6 +26,7 @@ import {
   HAND_HYGIENE_OPTIONS,
   isRecordComplete,
   computeScreeningScores,
+  computeBpClass,
 } from '@wish2care/shared';
 import type { HealthRecordPartial } from '@wish2care/shared';
 import { fetchApi } from '../lib/api';
@@ -52,20 +53,25 @@ import {
   ClipboardCheck,
   AlertCircle,
   Lock,
+  Activity,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const steps = [
   { id: 1, name: 'Student Details', icon: User },
   { id: 2, name: 'Anthropometry', icon: Ruler },
-  { id: 3, name: 'Diet', icon: Apple },
-  { id: 4, name: 'Lifestyle', icon: Dumbbell },
-  { id: 5, name: 'Medical History', icon: Stethoscope },
-  { id: 6, name: 'Mental Wellness', icon: Brain },
-  { id: 7, name: 'Clinical', icon: Eye },
-  { id: 8, name: 'Preventive', icon: ShieldCheck },
-  { id: 9, name: 'Review & Scores', icon: ClipboardCheck },
+  { id: 3, name: 'Blood Pressure', icon: Activity },
+  { id: 4, name: 'Diet', icon: Apple },
+  { id: 5, name: 'Lifestyle', icon: Dumbbell },
+  { id: 6, name: 'Medical History', icon: Stethoscope },
+  { id: 7, name: 'Mental Wellness', icon: Brain },
+  { id: 8, name: 'Clinical', icon: Eye },
+  { id: 9, name: 'Preventive', icon: ShieldCheck },
+  { id: 10, name: 'Review & Scores', icon: ClipboardCheck },
 ];
+
+type FormControl = ReturnType<typeof useForm<HealthRecordPartial>>['control'];
+type FormSetValue = ReturnType<typeof useForm<HealthRecordPartial>>['setValue'];
 
 function FieldSelect({
   label,
@@ -75,7 +81,7 @@ function FieldSelect({
 }: {
   label: string;
   name: keyof HealthRecordPartial;
-  control: ReturnType<typeof useForm<HealthRecordPartial>>['control'];
+  control: FormControl;
   options: readonly string[];
 }) {
   return (
@@ -93,6 +99,70 @@ function FieldSelect({
           />
         )}
       />
+    </div>
+  );
+}
+
+/** Yes/No (or Yes/Partial/No) field with Remarks shown only when answer is Yes */
+function YesNoFieldWithRemarks({
+  label,
+  name,
+  control,
+  setValue,
+  options = YES_NO,
+}: {
+  label: string;
+  name: keyof HealthRecordPartial;
+  control: FormControl;
+  setValue: FormSetValue;
+  options?: readonly string[];
+}) {
+  const answer = useWatch({ control, name });
+  const remarksMap = useWatch({ control, name: 'yesNoRemarks' }) || {};
+  const showRemarks = answer === 'Yes';
+  const remarkKey = String(name);
+
+  return (
+    <div className="space-y-2 sm:col-span-1">
+      <label className="text-sm font-semibold text-gray-700">{label}</label>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => (
+          <SearchableSelect
+            options={[...options]}
+            value={field.value as string | null | undefined}
+            onChange={(val) => {
+              field.onChange(val);
+              if (val !== 'Yes') {
+                const next = { ...(remarksMap as Record<string, string>) };
+                delete next[remarkKey];
+                setValue('yesNoRemarks', Object.keys(next).length ? next : null, {
+                  shouldDirty: true,
+                });
+              }
+            }}
+            placeholder="Select..."
+          />
+        )}
+      />
+      {showRemarks && (
+        <div className="pt-1">
+          <label className="text-xs font-semibold text-gray-500">Remarks / Comments</label>
+          <textarea
+            className="mt-1 flex w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm min-h-[72px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950"
+            placeholder="Add remarks for this Yes response..."
+            value={(remarksMap as Record<string, string>)[remarkKey] || ''}
+            onChange={(e) => {
+              const next = {
+                ...(remarksMap as Record<string, string>),
+                [remarkKey]: e.target.value,
+              };
+              setValue('yesNoRemarks', next, { shouldDirty: true });
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -123,7 +193,7 @@ export function StudentFormPage() {
   const form = useForm<HealthRecordPartial>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(healthRecordPartialSchema as any),
-    defaultValues: { studentId },
+    defaultValues: { studentId, yesNoRemarks: {} },
     mode: 'onTouched',
   });
 
@@ -137,12 +207,22 @@ export function StudentFormPage() {
       form.reset({
         ...data.data.healthRecord,
         studentId,
+        yesNoRemarks: data.data.healthRecord.yesNoRemarks || {},
       });
     }
   }, [data, form, studentId]);
 
   const watched = useWatch({ control: form.control });
   const scores = useMemo(() => computeScreeningScores(watched || {}), [watched]);
+
+  // Auto-populate BP Class from systolic / diastolic
+  useEffect(() => {
+    const next = computeBpClass(watched?.systolic, watched?.diastolic);
+    const current = watched?.bpClass ?? null;
+    if (next !== current && (next != null || current != null)) {
+      form.setValue('bpClass', next, { shouldDirty: true });
+    }
+  }, [watched?.systolic, watched?.diastolic, watched?.bpClass, form]);
 
   if (isLoading) {
     return (
@@ -386,6 +466,54 @@ export function StudentFormPage() {
                   {activeStep === 3 && (
                     <div className="space-y-6">
                       <div className="border-b border-gray-50 pb-4">
+                        <h2 className="text-xl font-bold text-gray-900">Blood Pressure & Random Blood Sugar</h2>
+                        <p className="text-sm text-gray-400 mt-1">
+                          Enter BP readings and classification. BP Subscore is calculated automatically.
+                        </p>
+                      </div>
+                      <div className="grid gap-6 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Systolic (mmHg)</label>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 108"
+                            className="h-12 text-base rounded-xl border-gray-200"
+                            {...form.register('systolic', { valueAsNumber: true })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Diastolic (mmHg)</label>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 70"
+                            className="h-12 text-base rounded-xl border-gray-200"
+                            {...form.register('diastolic', { valueAsNumber: true })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Random Blood Sugar (mg/dL)</label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            placeholder="e.g. 92"
+                            className="h-12 text-base rounded-xl border-gray-200"
+                            {...form.register('randomBloodSugar', { valueAsNumber: true })}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        Normal range: Systolic 120–140 mmHg · Diastolic 80–100 mmHg. BP Class is calculated automatically.
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                        <ScorePill label="BP Class (auto)" value={scores.bpClass} />
+                        <ScorePill label="BP Subscore (auto)" value={scores.bpSubscore} />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeStep === 4 && (
+                    <div className="space-y-6">
+                      <div className="border-b border-gray-50 pb-4">
                         <h2 className="text-xl font-bold text-gray-900">Section B — Diet</h2>
                         <p className="text-sm text-gray-400 mt-1">Diet quality screening responses.</p>
                       </div>
@@ -401,7 +529,7 @@ export function StudentFormPage() {
                     </div>
                   )}
 
-                  {activeStep === 4 && (
+                  {activeStep === 5 && (
                     <div className="space-y-6">
                       <div className="border-b border-gray-50 pb-4">
                         <h2 className="text-xl font-bold text-gray-900">Section C — Lifestyle</h2>
@@ -418,25 +546,25 @@ export function StudentFormPage() {
                     </div>
                   )}
 
-                  {activeStep === 5 && (
+                  {activeStep === 6 && (
                     <div className="space-y-6">
                       <div className="border-b border-gray-50 pb-4">
                         <h2 className="text-xl font-bold text-gray-900">Section D — Medical History</h2>
-                        <p className="text-sm text-gray-400 mt-1">Yes/No medical history flags.</p>
+                        <p className="text-sm text-gray-400 mt-1">Yes/No medical history flags. Remarks appear when Yes is selected.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <FieldSelect label="Chronic Disease" name="chronicDisease" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Frequent Fever" name="frequentFever" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Weight Loss" name="weightLoss" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Poor Appetite" name="poorAppetite" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Repeated Infection" name="repeatedInfection" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Hospitalisation" name="hospitalisation" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Medication" name="medication" control={form.control} options={YES_NO} />
+                        <YesNoFieldWithRemarks label="Chronic Disease" name="chronicDisease" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Frequent Fever" name="frequentFever" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Weight Loss" name="weightLoss" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Poor Appetite" name="poorAppetite" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Repeated Infection" name="repeatedInfection" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Hospitalisation" name="hospitalisation" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Medication" name="medication" control={form.control} setValue={form.setValue} />
                       </div>
                     </div>
                   )}
 
-                  {activeStep === 6 && (
+                  {activeStep === 7 && (
                     <div className="space-y-6">
                       <div className="border-b border-gray-50 pb-4">
                         <h2 className="text-xl font-bold text-gray-900">Section E — Mental Wellness</h2>
@@ -446,24 +574,7 @@ export function StudentFormPage() {
                         <FieldSelect label="Stress" name="stress" control={form.control} options={STRESS_OPTIONS} />
                         <FieldSelect label="Mood" name="mood" control={form.control} options={MOOD_OPTIONS} />
                         <FieldSelect label="Concentration" name="concentration" control={form.control} options={CONCENTRATION_OPTIONS} />
-                        <FieldSelect label="Bullying" name="bullying" control={form.control} options={YES_NO} />
-                      </div>
-                    </div>
-                  )}
-
-                  {activeStep === 7 && (
-                    <div className="space-y-6">
-                      <div className="border-b border-gray-50 pb-4">
-                        <h2 className="text-xl font-bold text-gray-900">Section F — Clinical Observation</h2>
-                        <p className="text-sm text-gray-400 mt-1">Observed clinical findings (Yes/No).</p>
-                      </div>
-                      <div className="grid gap-6 sm:grid-cols-2">
-                        <FieldSelect label="Pallor" name="pallor" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Dental Caries" name="dentalCaries" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Poor Oral Hygiene" name="poorOralHygiene" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Vision Problem" name="visionProblem" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Hair Changes" name="hairChanges" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Skin Changes" name="skinChanges" control={form.control} options={YES_NO} />
+                        <YesNoFieldWithRemarks label="Bullying" name="bullying" control={form.control} setValue={form.setValue} />
                       </div>
                     </div>
                   )}
@@ -471,20 +582,50 @@ export function StudentFormPage() {
                   {activeStep === 8 && (
                     <div className="space-y-6">
                       <div className="border-b border-gray-50 pb-4">
-                        <h2 className="text-xl font-bold text-gray-900">Section G — Preventive Health</h2>
-                        <p className="text-sm text-gray-400 mt-1">Vaccination, deworming, hygiene and check-ups.</p>
+                        <h2 className="text-xl font-bold text-gray-900">Section F — Clinical Observation</h2>
+                        <p className="text-sm text-gray-400 mt-1">Observed clinical findings (Yes/No). Remarks appear when Yes is selected.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <FieldSelect label="Vaccination Complete" name="vaccinationComplete" control={form.control} options={YES_PARTIAL_NO} />
-                        <FieldSelect label="Deworming" name="deworming" control={form.control} options={YES_PARTIAL_NO} />
-                        <FieldSelect label="Hand Hygiene" name="handHygiene" control={form.control} options={HAND_HYGIENE_OPTIONS} />
-                        <FieldSelect label="Dental Check-up" name="dentalCheckup" control={form.control} options={YES_NO} />
-                        <FieldSelect label="Vision Screening" name="visionScreening" control={form.control} options={YES_NO} />
+                        <YesNoFieldWithRemarks label="Pallor" name="pallor" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Dental Caries" name="dentalCaries" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Poor Oral Hygiene" name="poorOralHygiene" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Vision Problem" name="visionProblem" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Hair Changes" name="hairChanges" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Skin Changes" name="skinChanges" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Clubbing" name="clubbing" control={form.control} setValue={form.setValue} />
                       </div>
                     </div>
                   )}
 
                   {activeStep === 9 && (
+                    <div className="space-y-6">
+                      <div className="border-b border-gray-50 pb-4">
+                        <h2 className="text-xl font-bold text-gray-900">Section G — Preventive Health</h2>
+                        <p className="text-sm text-gray-400 mt-1">Vaccination, deworming, hygiene and check-ups. Remarks appear when Yes is selected.</p>
+                      </div>
+                      <div className="grid gap-6 sm:grid-cols-2">
+                        <YesNoFieldWithRemarks
+                          label="Vaccination Complete"
+                          name="vaccinationComplete"
+                          control={form.control}
+                          setValue={form.setValue}
+                          options={YES_PARTIAL_NO}
+                        />
+                        <YesNoFieldWithRemarks
+                          label="Deworming"
+                          name="deworming"
+                          control={form.control}
+                          setValue={form.setValue}
+                          options={YES_PARTIAL_NO}
+                        />
+                        <FieldSelect label="Hand Hygiene" name="handHygiene" control={form.control} options={HAND_HYGIENE_OPTIONS} />
+                        <YesNoFieldWithRemarks label="Dental Check-up" name="dentalCheckup" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Vision Screening" name="visionScreening" control={form.control} setValue={form.setValue} />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeStep === 10 && (
                     <div className="space-y-6">
                       <div className="border-b border-gray-50 pb-4">
                         <h2 className="text-xl font-bold text-gray-900">Review & Automated Scores</h2>
@@ -495,6 +636,7 @@ export function StudentFormPage() {
 
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <ScorePill label="Growth & Anthropometry" value={scores.growthAnthropometryScore} />
+                        <ScorePill label="BP Subscore" value={scores.bpSubscore} />
                         <ScorePill label="Diet Score" value={scores.dietScore} />
                         <ScorePill label="Lifestyle Score" value={scores.lifestyleScore} />
                         <ScorePill label="Medical History Score" value={scores.medicalHistoryScore} />
@@ -529,27 +671,23 @@ export function StudentFormPage() {
                           </span>
                         </div>
                         <div className="flex justify-between border-b border-gray-200/50 pb-2.5">
+                          <span className="font-semibold text-gray-500">BP / RBS</span>
+                          <span className="font-medium text-gray-900">
+                            {watched.systolic ?? '—'}/{watched.diastolic ?? '—'} mmHg ({scores.bpClass || '—'})
+                            {' · '}
+                            RBS: {watched.randomBloodSugar != null ? `${watched.randomBloodSugar} mg/dL` : '—'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-b border-gray-200/50 pb-2.5">
                           <span className="font-semibold text-gray-500">MUAC / Waist</span>
                           <span className="font-medium text-gray-900">
                             {watched.muac ?? '—'} cm / {watched.waistCircumference ?? '—'} cm
                           </span>
                         </div>
                         <div className="flex justify-between border-b border-gray-200/50 pb-2.5">
-                          <span className="font-semibold text-gray-500">Diet (Breakfast / Fruit / Water)</span>
+                          <span className="font-semibold text-gray-500">Chronic Disease / Clubbing</span>
                           <span className="font-medium text-gray-900">
-                            {watched.breakfast || '—'} / {watched.fruitIntake || '—'} / {watched.waterIntake || '—'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-b border-gray-200/50 pb-2.5">
-                          <span className="font-semibold text-gray-500">Lifestyle (Activity / Sleep)</span>
-                          <span className="font-medium text-gray-900">
-                            {watched.physicalActivity || '—'} / {watched.sleepHours || '—'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-b border-gray-200/50 pb-2.5">
-                          <span className="font-semibold text-gray-500">Chronic Disease / Weight Loss</span>
-                          <span className="font-medium text-gray-900">
-                            {watched.chronicDisease || '—'} / {watched.weightLoss || '—'}
+                            {watched.chronicDisease || '—'} / {watched.clubbing || '—'}
                           </span>
                         </div>
                         <div className="flex justify-between pt-1">
