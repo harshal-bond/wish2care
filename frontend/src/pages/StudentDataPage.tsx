@@ -64,13 +64,13 @@ export function StudentDataPage() {
     if (schoolFilter !== 'all' && String(student.schoolId) !== schoolFilter) return false;
 
     const latestMH = student.mentalHealthAssessments?.[0];
-    const tbFlagged = ['tbCough', 'tbFever', 'tbNightSweats', 'tbWeightLoss'].some(
+    const riskFlagged = ['chronicDisease', 'weightLoss', 'poorAppetite'].some(
       k => student.healthRecord?.[k] === 'Yes'
     );
 
     if (filter === 'assessed' && !latestMH) return false;
     if (filter === 'not-assessed' && latestMH) return false;
-    if (filter === 'flagged' && !tbFlagged) return false;
+    if (filter === 'flagged' && !riskFlagged) return false;
 
     return true;
   });
@@ -78,7 +78,7 @@ export function StudentDataPage() {
   // Summary stats
   const assessed = allStudents.filter(s => s.mentalHealthAssessments?.length > 0).length;
   const tbFlagged = allStudents.filter(s =>
-    ['tbCough', 'tbFever', 'tbNightSweats', 'tbWeightLoss'].some(k => s.healthRecord?.[k] === 'Yes')
+    ['chronicDisease', 'weightLoss', 'poorAppetite'].some(k => s.healthRecord?.[k] === 'Yes')
   ).length;
   const avgScore = (() => {
     const scores = allStudents
@@ -203,7 +203,7 @@ export function StudentDataPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">School</th>
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Health Record</th>
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">MH Assessment</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider hidden sm:table-cell">TB Screen</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Risk Flags</th>
                   <th className="px-5 py-3.5"></th>
                 </tr>
               </thead>
@@ -219,7 +219,7 @@ export function StudentDataPage() {
                   filtered.map((student: any, idx: number) => {
                     const latestMH = student.mentalHealthAssessments?.[0];
                     const mhLabel = getMHLabel(latestMH?.totalScore);
-                    const hasTbFlag = ['tbCough', 'tbFever', 'tbNightSweats', 'tbWeightLoss'].some(
+                    const hasTbFlag = ['chronicDisease', 'weightLoss', 'poorAppetite'].some(
                       k => student.healthRecord?.[k] === 'Yes'
                     );
                     const hasHealthRecord = !!student.healthRecord;
@@ -264,7 +264,7 @@ export function StudentDataPage() {
                               </div>
                               <div className="flex items-center gap-1.5 text-xs text-gray-600">
                                 <Activity className="h-3 w-3 text-blue-500" />
-                                Hb: {student.healthRecord.hb ? `${student.healthRecord.hb} g/dL` : '—'}
+                                MUAC: {student.healthRecord.muac != null ? `${student.healthRecord.muac} cm` : '—'}
                               </div>
                             </div>
                           ) : (
