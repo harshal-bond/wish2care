@@ -83,6 +83,7 @@ export const SCORING_POINTS = {
     visionProblem: { No: 5, Yes: 0 },
     hairChanges: { No: 5, Yes: 0 },
     skinChanges: { No: 5, Yes: 0 },
+    clubbing: { No: 5, Yes: 0 },
     vaccinationComplete: { Yes: 5, Partial: 3, No: 0 },
     deworming: { Yes: 5, Partial: 3, No: 0 },
     handHygiene: { Good: 5, Average: 3, Poor: 0 },
@@ -105,8 +106,46 @@ export const VALIDATION_RANGES = {
     weight: { min: 5, max: 200, unit: 'kg' },
     muac: { min: 10, max: 40, unit: 'cm' },
     waistCircumference: { min: 30, max: 150, unit: 'cm' },
+    systolic: { min: 60, max: 200, unit: 'mmHg' },
+    diastolic: { min: 30, max: 130, unit: 'mmHg' },
+    randomBloodSugar: { min: 40, max: 600, unit: 'mg/dL' },
     age: { min: 2, max: 99, unit: 'years' },
 };
+// ── Blood Pressure class (auto from systolic / diastolic) ──────────────
+export const BP_CLASS_OPTIONS = ['Low', 'Normal', 'High'];
+/** Normal ranges: Systolic 120–140 mmHg, Diastolic 80–100 mmHg */
+export const BP_NORMAL_RANGES = {
+    systolic: { min: 120, max: 140 },
+    diastolic: { min: 80, max: 100 },
+};
+/** Subscore for auto BP class */
+export const BP_SUBSCORE_MAP = {
+    Normal: 100,
+    Low: 60,
+    High: 20,
+};
+/** Yes/No (or Yes/Partial/No) fields that can collect Remarks when answer is Yes */
+export const YES_NO_REMARK_FIELDS = [
+    'chronicDisease',
+    'frequentFever',
+    'weightLoss',
+    'poorAppetite',
+    'repeatedInfection',
+    'hospitalisation',
+    'medication',
+    'bullying',
+    'pallor',
+    'dentalCaries',
+    'poorOralHygiene',
+    'visionProblem',
+    'hairChanges',
+    'skinChanges',
+    'clubbing',
+    'vaccinationComplete',
+    'deworming',
+    'dentalCheckup',
+    'visionScreening',
+];
 // ── Excel cell mapping (DB field → Excel column letter) ────────────────
 // STUDENT SCREENING sheet: row 3 = headers, data from row 4
 export const EXCEL_COLUMN_MAP = {

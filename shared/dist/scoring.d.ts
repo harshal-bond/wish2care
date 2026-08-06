@@ -1,12 +1,16 @@
 /**
  * Implements STUDENT SCREENING formulas from the Wish2Care SAFE Excel workbook.
  */
-import { type BmiCategory, type RiskCategory } from './constants.js';
+import { type BmiCategory, type BpClass, type RiskCategory } from './constants.js';
 export type ScoringInput = {
     height?: number | null;
     weight?: number | null;
     muac?: number | null;
     waistCircumference?: number | null;
+    systolic?: number | null;
+    diastolic?: number | null;
+    bpClass?: string | null;
+    randomBloodSugar?: number | null;
     breakfast?: string | null;
     fruitIntake?: string | null;
     vegetables?: string | null;
@@ -37,6 +41,7 @@ export type ScoringInput = {
     visionProblem?: string | null;
     hairChanges?: string | null;
     skinChanges?: string | null;
+    clubbing?: string | null;
     vaccinationComplete?: string | null;
     deworming?: string | null;
     handHygiene?: string | null;
@@ -47,6 +52,8 @@ export type ScreeningScores = {
     bmi: number | null;
     bmiCategory: BmiCategory | null;
     growthAnthropometryScore: number | null;
+    bpClass: BpClass | null;
+    bpSubscore: number | null;
     dietScore: number | null;
     lifestyleScore: number | null;
     medicalHistoryScore: number | null;
@@ -60,6 +67,14 @@ export type ScreeningScores = {
     needReferral: 'Yes' | 'No' | null;
     needDoctorReview: 'Yes' | 'No' | null;
 };
+/**
+ * Auto BP Class from readings.
+ * Normal: systolic 120–140 AND diastolic 80–100.
+ * High if either value is above its normal max; else Low if either is below its normal min.
+ */
+export declare function computeBpClass(systolic: number | null | undefined, diastolic: number | null | undefined): BpClass | null;
+/** BP Subscore: Normal=100, Low=60, High=20 */
+export declare function computeBpSubscore(bpClass: string | null | undefined): number | null;
 /** BMI = ROUND(weight_kg / (height_cm/100)^2, 1) */
 export declare function computeBmi(height: number | null | undefined, weight: number | null | undefined): number | null;
 /** Adult-style cut-offs from Excel: <18.5 / <25 / <30 / else */

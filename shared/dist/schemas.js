@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GENDER_OPTIONS, YES_NO, YES_PARTIAL_NO, ROLES, VALIDATION_RANGES, BREAKFAST_OPTIONS, FRUIT_INTAKE_OPTIONS, VEGETABLES_OPTIONS, PROTEIN_INTAKE_OPTIONS, JUNK_FOOD_OPTIONS, SUGARY_DRINKS_OPTIONS, WATER_INTAKE_OPTIONS, PHYSICAL_ACTIVITY_OPTIONS, SCREEN_TIME_OPTIONS, OUTDOOR_PLAY_OPTIONS, SLEEP_HOURS_OPTIONS, SMOKING_OPTIONS, ALCOHOL_OPTIONS, STRESS_OPTIONS, MOOD_OPTIONS, CONCENTRATION_OPTIONS, HAND_HYGIENE_OPTIONS, } from './constants.js';
+import { GENDER_OPTIONS, YES_NO, YES_PARTIAL_NO, ROLES, VALIDATION_RANGES, BREAKFAST_OPTIONS, FRUIT_INTAKE_OPTIONS, VEGETABLES_OPTIONS, PROTEIN_INTAKE_OPTIONS, JUNK_FOOD_OPTIONS, SUGARY_DRINKS_OPTIONS, WATER_INTAKE_OPTIONS, PHYSICAL_ACTIVITY_OPTIONS, SCREEN_TIME_OPTIONS, OUTDOOR_PLAY_OPTIONS, SLEEP_HOURS_OPTIONS, SMOKING_OPTIONS, ALCOHOL_OPTIONS, STRESS_OPTIONS, MOOD_OPTIONS, CONCENTRATION_OPTIONS, HAND_HYGIENE_OPTIONS, BP_CLASS_OPTIONS, } from './constants.js';
 export const optionalNumber = () => z.union([z.number(), z.string(), z.null(), z.undefined()])
     .transform((val) => {
     if (val === '' || val === null || val === undefined)
@@ -100,6 +100,11 @@ export const healthRecordSchema = z.object({
     weight: optionalNumber(),
     muac: optionalNumber(),
     waistCircumference: optionalNumber(),
+    // Blood Pressure & Random Blood Sugar (below Section A)
+    systolic: optionalNumber(),
+    diastolic: optionalNumber(),
+    bpClass: optionalEnum(BP_CLASS_OPTIONS),
+    randomBloodSugar: optionalNumber(),
     // Section B – Diet
     breakfast: optionalEnum(BREAKFAST_OPTIONS),
     fruitIntake: optionalEnum(FRUIT_INTAKE_OPTIONS),
@@ -135,12 +140,21 @@ export const healthRecordSchema = z.object({
     visionProblem: yesNoEnum.optional().nullable(),
     hairChanges: yesNoEnum.optional().nullable(),
     skinChanges: yesNoEnum.optional().nullable(),
+    clubbing: yesNoEnum.optional().nullable(),
     // Section G – Preventive Health
     vaccinationComplete: yesPartialNoEnum.optional().nullable(),
     deworming: yesPartialNoEnum.optional().nullable(),
     handHygiene: optionalEnum(HAND_HYGIENE_OPTIONS),
     dentalCheckup: yesNoEnum.optional().nullable(),
     visionScreening: yesNoEnum.optional().nullable(),
+    /** Remarks keyed by Yes/No field name — only used when that answer is Yes */
+    yesNoRemarks: z
+        .union([z.record(z.string(), z.string()), z.null(), z.undefined()])
+        .transform((val) => {
+        if (val == null || typeof val !== 'object')
+            return null;
+        return val;
+    }),
 });
 // ── Partial health record for autosave ─────────────────────────────────
 export const healthRecordPartialSchema = healthRecordSchema.partial().required({

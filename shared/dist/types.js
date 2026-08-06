@@ -1,13 +1,20 @@
 // ── Completion check helpers ───────────────────────────────────────────
 const filled = (v) => v !== null && v !== undefined && v !== '';
 /**
- * Returns the count of completed screening sections (out of 7: A–G)
- * matching Excel domain completeness (all inputs present in a section).
+ * Returns the count of completed screening sections (out of 8: A, BP, B–G)
+ * matching domain completeness (all inputs present in a section).
  */
 export function countCompletedDomains(record) {
     let count = 0;
     // A – Anthropometry
     if (filled(record.height) && filled(record.weight) && filled(record.muac) && filled(record.waistCircumference)) {
+        count++;
+    }
+    // Blood Pressure & RBS
+    if (filled(record.systolic) &&
+        filled(record.diastolic) &&
+        filled(record.bpClass) &&
+        filled(record.randomBloodSugar)) {
         count++;
     }
     // B – Diet
@@ -52,7 +59,8 @@ export function countCompletedDomains(record) {
         filled(record.poorOralHygiene) &&
         filled(record.visionProblem) &&
         filled(record.hairChanges) &&
-        filled(record.skinChanges)) {
+        filled(record.skinChanges) &&
+        filled(record.clubbing)) {
         count++;
     }
     // G – Preventive Health
@@ -66,6 +74,6 @@ export function countCompletedDomains(record) {
     return count;
 }
 export function isRecordComplete(record) {
-    return countCompletedDomains(record) === 7;
+    return countCompletedDomains(record) === 8;
 }
 //# sourceMappingURL=types.js.map

@@ -53,6 +53,8 @@ export const healthRecords = pgTable('health_records', {
     weight: real('weight'),
     muac: real('muac'),
     waistCircumference: real('waist_circumference'),
+    // Blood Pressure & Random Blood Sugar (systolic/diastolic/bp_class reused)
+    randomBloodSugar: real('random_blood_sugar'),
     // Section B – Diet
     breakfast: varchar('breakfast', { length: 50 }),
     fruitIntake: varchar('fruit_intake', { length: 50 }),
@@ -88,12 +90,15 @@ export const healthRecords = pgTable('health_records', {
     visionProblem: varchar('vision_problem', { length: 10 }),
     hairChanges: varchar('hair_changes', { length: 10 }),
     skinChanges: varchar('skin_changes', { length: 10 }),
+    clubbing: varchar('clubbing', { length: 10 }),
     // Section G – Preventive Health
     vaccinationComplete: varchar('vaccination_complete', { length: 20 }),
     deworming: varchar('deworming', { length: 20 }),
     handHygiene: varchar('hand_hygiene', { length: 50 }),
     dentalCheckup: varchar('dental_checkup', { length: 10 }),
     visionScreening: varchar('vision_screening', { length: 10 }),
+    /** Remarks for Yes answers: { fieldName: comment } */
+    yesNoRemarks: jsonb('yes_no_remarks').$type(),
     // Legacy columns retained so existing rows migrate without data loss
     undernutritionClass: varchar('undernutrition_class', { length: 50 }),
     overweightClass: varchar('overweight_class', { length: 50 }),

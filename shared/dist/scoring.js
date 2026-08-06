@@ -1,7 +1,30 @@
 /**
  * Implements STUDENT SCREENING formulas from the Wish2Care SAFE Excel workbook.
  */
-import { DOMAIN_WEIGHTS, GROWTH_SCORE_BY_BMI, MUAC_SEVERE_THRESHOLD, SCORING_POINTS, UNDERWEIGHT_WITH_LOW_MUAC_SCORE, } from './constants.js';
+import { BP_NORMAL_RANGES, BP_SUBSCORE_MAP, DOMAIN_WEIGHTS, GROWTH_SCORE_BY_BMI, MUAC_SEVERE_THRESHOLD, SCORING_POINTS, UNDERWEIGHT_WITH_LOW_MUAC_SCORE, } from './constants.js';
+/**
+ * Auto BP Class from readings.
+ * Normal: systolic 120–140 AND diastolic 80–100.
+ * High if either value is above its normal max; else Low if either is below its normal min.
+ */
+export function computeBpClass(systolic, diastolic) {
+    if (systolic == null || diastolic == null || Number.isNaN(systolic) || Number.isNaN(diastolic)) {
+        return null;
+    }
+    if (systolic > BP_NORMAL_RANGES.systolic.max || diastolic > BP_NORMAL_RANGES.diastolic.max) {
+        return 'High';
+    }
+    if (systolic < BP_NORMAL_RANGES.systolic.min || diastolic < BP_NORMAL_RANGES.diastolic.min) {
+        return 'Low';
+    }
+    return 'Normal';
+}
+/** BP Subscore: Normal=100, Low=60, High=20 */
+export function computeBpSubscore(bpClass) {
+    if (!bpClass || !(bpClass in BP_SUBSCORE_MAP))
+        return null;
+    return BP_SUBSCORE_MAP[bpClass];
+}
 function isBlank(v) {
     return v === null || v === undefined || v === '';
 }
@@ -99,6 +122,7 @@ export function computeClinicalScore(input) {
         lookupPoints('visionProblem', input.visionProblem),
         lookupPoints('hairChanges', input.hairChanges),
         lookupPoints('skinChanges', input.skinChanges),
+        lookupPoints('clubbing', input.clubbing),
     ]);
 }
 export function computePreventiveScore(input) {
@@ -189,6 +213,8 @@ export function computeScreeningScores(input) {
     const bmi = computeBmi(input.height, input.weight);
     const bmiCategory = computeBmiCategory(bmi);
     const growthAnthropometryScore = computeGrowthScore(bmiCategory, input.muac);
+    const bpClass = computeBpClass(input.systolic, input.diastolic) ?? input.bpClass ?? null;
+    const bpSubscore = computeBpSubscore(bpClass);
     const dietScore = computeDietScore(input);
     const lifestyleScore = computeLifestyleScore(input);
     const medicalHistoryScore = computeMedicalHistoryScore(input);
@@ -213,6 +239,8 @@ export function computeScreeningScores(input) {
         bmi,
         bmiCategory,
         growthAnthropometryScore,
+        bpClass,
+        bpSubscore,
         dietScore,
         lifestyleScore,
         medicalHistoryScore,

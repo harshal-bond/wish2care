@@ -73,6 +73,12 @@ export interface HealthRecord {
   muac: number | null;
   waistCircumference: number | null;
 
+  // Blood Pressure & Random Blood Sugar
+  systolic: number | null;
+  diastolic: number | null;
+  bpClass: string | null;
+  randomBloodSugar: number | null;
+
   // Section B – Diet
   breakfast: string | null;
   fruitIntake: string | null;
@@ -112,6 +118,7 @@ export interface HealthRecord {
   visionProblem: string | null;
   hairChanges: string | null;
   skinChanges: string | null;
+  clubbing: string | null;
 
   // Section G – Preventive Health
   vaccinationComplete: string | null;
@@ -119,6 +126,9 @@ export interface HealthRecord {
   handHygiene: string | null;
   dentalCheckup: string | null;
   visionScreening: string | null;
+
+  /** Remarks for Yes answers on Yes/No fields */
+  yesNoRemarks: Record<string, string> | null;
 
   createdAt: string | Date;
   updatedAt: string | Date;
@@ -170,14 +180,24 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 const filled = (v: unknown) => v !== null && v !== undefined && v !== '';
 
 /**
- * Returns the count of completed screening sections (out of 7: A–G)
- * matching Excel domain completeness (all inputs present in a section).
+ * Returns the count of completed screening sections (out of 8: A, BP, B–G)
+ * matching domain completeness (all inputs present in a section).
  */
 export function countCompletedDomains(record: Partial<HealthRecord>): number {
   let count = 0;
 
   // A – Anthropometry
   if (filled(record.height) && filled(record.weight) && filled(record.muac) && filled(record.waistCircumference)) {
+    count++;
+  }
+
+  // Blood Pressure & RBS
+  if (
+    filled(record.systolic) &&
+    filled(record.diastolic) &&
+    filled(record.bpClass) &&
+    filled(record.randomBloodSugar)
+  ) {
     count++;
   }
 
@@ -236,7 +256,8 @@ export function countCompletedDomains(record: Partial<HealthRecord>): number {
     filled(record.poorOralHygiene) &&
     filled(record.visionProblem) &&
     filled(record.hairChanges) &&
-    filled(record.skinChanges)
+    filled(record.skinChanges) &&
+    filled(record.clubbing)
   ) {
     count++;
   }
@@ -256,5 +277,5 @@ export function countCompletedDomains(record: Partial<HealthRecord>): number {
 }
 
 export function isRecordComplete(record: Partial<HealthRecord>): boolean {
-  return countCompletedDomains(record) === 7;
+  return countCompletedDomains(record) === 8;
 }

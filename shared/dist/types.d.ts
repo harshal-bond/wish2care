@@ -56,6 +56,10 @@ export interface HealthRecord {
     weight: number | null;
     muac: number | null;
     waistCircumference: number | null;
+    systolic: number | null;
+    diastolic: number | null;
+    bpClass: string | null;
+    randomBloodSugar: number | null;
     breakfast: string | null;
     fruitIntake: string | null;
     vegetables: string | null;
@@ -86,11 +90,14 @@ export interface HealthRecord {
     visionProblem: string | null;
     hairChanges: string | null;
     skinChanges: string | null;
+    clubbing: string | null;
     vaccinationComplete: string | null;
     deworming: string | null;
     handHygiene: string | null;
     dentalCheckup: string | null;
     visionScreening: string | null;
+    /** Remarks for Yes answers on Yes/No fields */
+    yesNoRemarks: Record<string, string> | null;
     createdAt: string | Date;
     updatedAt: string | Date;
 }
@@ -132,8 +139,8 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     limit: number;
 }
 /**
- * Returns the count of completed screening sections (out of 7: A–G)
- * matching Excel domain completeness (all inputs present in a section).
+ * Returns the count of completed screening sections (out of 8: A, BP, B–G)
+ * matching domain completeness (all inputs present in a section).
  */
 export declare function countCompletedDomains(record: Partial<HealthRecord>): number;
 export declare function isRecordComplete(record: Partial<HealthRecord>): boolean;
