@@ -185,9 +185,12 @@ export function StudentFormPage() {
   const [activeStep, setActiveStep] = useState(1);
   const { user } = useAuth();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['student', studentId],
     queryFn: () => fetchApi(`/students/${studentId}`),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const form = useForm<HealthRecordPartial>({
@@ -202,26 +205,29 @@ export function StudentFormPage() {
     studentId,
   });
 
+  // Always hydrate from the latest server snapshot (multi-user / multi-section safe).
+  // Skip while the user has unsaved local edits so a background refetch can't wipe them.
   useEffect(() => {
-    if (data?.data?.healthRecord) {
-      form.reset({
-        ...data.data.healthRecord,
-        studentId,
-        yesNoRemarks: data.data.healthRecord.yesNoRemarks || {},
-      });
-    }
-  }, [data, form, studentId]);
+    if (!data?.data) return;
+    if (form.formState.isDirty) return;
+    const hr = data.data.healthRecord;
+    form.reset({
+      ...(hr || {}),
+      studentId,
+      yesNoRemarks: hr?.yesNoRemarks || {},
+    });
+  }, [data, dataUpdatedAt, form, studentId]);
 
   const watched = useWatch({ control: form.control });
   const scores = useMemo(() => computeScreeningScores(watched || {}), [watched]);
 
-  // Auto-populate BP Class from systolic / diastolic
+  // Auto-populate BP Class from systolic / diastolic (don't dirty until user entered readings)
   useEffect(() => {
     const next = computeBpClass(watched?.systolic, watched?.diastolic);
     const current = watched?.bpClass ?? null;
-    if (next !== current && (next != null || current != null)) {
-      form.setValue('bpClass', next, { shouldDirty: true });
-    }
+    if (next === current) return;
+    if (next == null && current == null) return;
+    form.setValue('bpClass', next, { shouldDirty: Boolean(watched?.systolic && watched?.diastolic) });
   }, [watched?.systolic, watched?.diastolic, watched?.bpClass, form]);
 
   if (isLoading) {
@@ -246,13 +252,16 @@ export function StudentFormPage() {
   const today = new Date().toISOString().split('T')[0];
 
   const handleNext = async () => {
-    const isValid = await form.trigger();
-    if (isValid) {
-      setActiveStep((prev) => Math.min(prev + 1, steps.length));
+    const saved = await forceSave();
+    if (!saved && form.formState.isDirty) {
+      // Still allow navigation if nothing to save failed hard — but block if dirty save failed
+      return;
     }
+    setActiveStep((prev) => Math.min(prev + 1, steps.length));
   };
 
-  const handlePrev = () => {
+  const handlePrev = async () => {
+    await forceSave();
     setActiveStep((prev) => Math.max(prev - 1, 1));
   };
 
@@ -312,6 +321,11 @@ export function StudentFormPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {isFetching ? (
+            <span className="text-xs text-gray-400 flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing latest…
+            </span>
+          ) : null}
           <div className="text-right text-xs">
             {saveError ? (
               <span className="text-red-500 font-semibold flex items-center gap-1">
@@ -350,8 +364,8 @@ export function StudentFormPage() {
                 key={step.id}
                 type="button"
                 onClick={async () => {
-                  const isValid = await form.trigger();
-                  if (isValid) setActiveStep(step.id);
+                  await forceSave();
+                  setActiveStep(step.id);
                 }}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold whitespace-nowrap text-left transition-all duration-150 shrink-0 w-full',
@@ -700,7 +714,10 @@ export function StudentFormPage() {
 
                       <div className="pt-4">
                         <Button
-                          onClick={() => navigate(`/students/${studentId}`)}
+                          onClick={async () => {
+                            await forceSave();
+                            navigate(`/students/${studentId}`);
+                          }}
                           className="w-full h-12 rounded-xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2"
                         >
                           <CheckCircle2 className="h-5 w-5" />

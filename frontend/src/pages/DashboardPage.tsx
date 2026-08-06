@@ -20,7 +20,9 @@ export function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['students'],
     queryFn: () => fetchApi('/students'),
-    staleTime: 60_000,
+    staleTime: 15_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   // Must stay above any early return (React hooks order)
@@ -35,8 +37,11 @@ export function DashboardPage() {
   }
 
   const students = data?.data || [];
-  const completed = students.filter((s: any) => s._status.isComplete).length;
-  const pending = students.length - completed;
+  const completed = students.filter((s: any) => s._status?.isComplete).length;
+  const inProgress = students.filter(
+    (s: any) => !s._status?.isComplete && (s._status?.completedDomains ?? 0) > 0
+  ).length;
+  const pending = students.length - completed - inProgress;
   const progress = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
 
   const filteredStudents = students.filter((student: any) =>
@@ -115,7 +120,7 @@ export function DashboardPage() {
       </div>
 
       {/* Main Stats Cards */}
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Total Students</CardTitle>
@@ -131,13 +136,14 @@ export function DashboardPage() {
         
         <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Completed</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Fully Complete</CardTitle>
             <div className="p-2 bg-emerald-50 rounded-xl">
               <CheckCircle className="h-4 w-4 text-emerald-600" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold tracking-tight text-emerald-600">{completed}</div>
+            <p className="text-xs text-gray-400 mt-1">All 8 screening sections done</p>
             <div className="flex items-center gap-2 mt-2">
               <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-emerald-500 h-full" style={{ width: `${progress}%` }} />
@@ -149,7 +155,20 @@ export function DashboardPage() {
 
         <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Pending Screenings</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">In Progress</CardTitle>
+            <div className="p-2 bg-amber-50 rounded-xl">
+              <UserCheck className="h-4 w-4 text-amber-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold tracking-tight text-amber-600">{inProgress}</div>
+            <p className="text-xs text-gray-400 mt-1">Started but not finished</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Not Started</CardTitle>
             <div className="p-2 bg-orange-50 rounded-xl">
               <Clock className="h-4 w-4 text-orange-500" />
             </div>
