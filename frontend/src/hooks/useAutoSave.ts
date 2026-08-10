@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
+import { countCompletedDomains, isRecordComplete } from '@wish2care/shared';
 import { API_URL, fetchApi } from '../lib/api';
 
 export function useAutoSave({
@@ -26,8 +27,9 @@ export function useAutoSave({
   formRef.current = form;
 
   const patchStudentCache = useCallback(
-    (savedRecord: unknown) => {
+    (savedRecord: any) => {
       if (!savedRecord) return;
+
       queryClient.setQueryData(['student', studentId], (old: any) => {
         if (!old?.data) return old;
         return {
@@ -38,8 +40,25 @@ export function useAutoSave({
           },
         };
       });
-      // Refresh list counts without refetching the open form
-      void queryClient.invalidateQueries({ queryKey: ['students'] });
+
+      // Patch list in place — avoid refetching the full student list on every autosave
+      const completedDomains = countCompletedDomains(savedRecord);
+      const isComplete = isRecordComplete(savedRecord);
+      queryClient.setQueryData(['students'], (old: any) => {
+        if (!old?.data || !Array.isArray(old.data)) return old;
+        return {
+          ...old,
+          data: old.data.map((s: any) =>
+            s.id !== studentId
+              ? s
+              : {
+                  ...s,
+                  healthRecord: { updatedAt: savedRecord.updatedAt },
+                  _status: { completedDomains, isComplete },
+                }
+          ),
+        };
+      });
     },
     [queryClient, studentId]
   );

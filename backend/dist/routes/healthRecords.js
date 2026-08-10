@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
-import { healthRecords, students } from '../db/schema.js';
+import { healthRecords } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { healthRecordPartialSchema, isRecordComplete } from '@wish2care/shared';
 import { eq } from 'drizzle-orm';
@@ -19,50 +19,43 @@ healthRecordsRoutes.put('/:studentId', async (c) => {
         return c.json({ success: false, error: 'Invalid ID' }, 400);
     try {
         const body = await c.req.json();
-        console.log('[SAVE REQUEST] Frontend payload received:', JSON.stringify(body));
         body.studentId = studentId;
-        console.log('[SAVE REQUEST] Backend body prepared for validation:', JSON.stringify(body));
         const result = healthRecordPartialSchema.safeParse(body);
         if (!result.success) {
-            console.log('[SAVE REQUEST] Zod validation failed:');
-            console.log(result.error.issues);
             return c.json({
                 success: false,
                 error: 'Validation failed',
-                issues: result.error.issues
+                issues: result.error.issues,
             }, 400);
         }
-        console.log('[SAVE REQUEST] Zod validation passed:', JSON.stringify(result.data));
-        // Check if student exists
-        const [student] = await db.select().from(students).where(eq(students.id, studentId));
-        if (!student) {
-            return c.json({ success: false, error: 'Student not found' }, 404);
-        }
         const user = c.get('user');
-        // Upsert the record
-        const [existingRecord] = await db.select().from(healthRecords).where(eq(healthRecords.studentId, studentId));
-        let record;
-        if (existingRecord) {
-            if (user.role === 'fieldworker' && isRecordComplete(existingRecord)) {
-                return c.json({ success: false, error: 'Forbidden: Record is already submitted and cannot be edited by a fieldworker.' }, 403);
-            }
-            // Update
-            const updateData = { ...result.data, updatedAt: new Date() };
-            console.log('[SAVE DB] Updating record with values:', JSON.stringify(updateData));
-            [record] = await db.update(healthRecords)
-                .set(updateData)
-                .where(eq(healthRecords.studentId, studentId))
-                .returning();
+        const [existingRecord] = await db
+            .select()
+            .from(healthRecords)
+            .where(eq(healthRecords.studentId, studentId));
+        if (existingRecord && user.role === 'fieldworker' && isRecordComplete(existingRecord)) {
+            return c.json({
+                success: false,
+                error: 'Forbidden: Record is already submitted and cannot be edited by a fieldworker.',
+            }, 403);
         }
-        else {
-            // Insert
-            const insertData = { ...result.data, studentId };
-            console.log('[SAVE DB] Inserting record with values:', JSON.stringify(insertData));
-            [record] = await db.insert(healthRecords)
-                .values(insertData)
-                .returning();
-        }
-        console.log('[SAVE DB] Success. Returning record:', JSON.stringify(record));
+        const { studentId: _ignored, ...fields } = result.data;
+        const now = new Date();
+        const [record] = await db
+            .insert(healthRecords)
+            .values({
+            ...fields,
+            studentId,
+            updatedAt: now,
+        })
+            .onConflictDoUpdate({
+            target: healthRecords.studentId,
+            set: {
+                ...fields,
+                updatedAt: now,
+            },
+        })
+            .returning();
         return c.json({ success: true, data: record });
     }
     catch (err) {

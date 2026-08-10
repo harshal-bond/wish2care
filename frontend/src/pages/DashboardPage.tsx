@@ -20,9 +20,9 @@ export function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['students'],
     queryFn: () => fetchApi('/students'),
-    staleTime: 15_000,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   // Must stay above any early return (React hooks order)

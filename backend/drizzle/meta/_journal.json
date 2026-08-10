@@ -43,6 +43,13 @@
       "when": 1785982000000,
       "tag": "0005_assessment_complete",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785983000000,
+      "tag": "0006_staff_and_indexes",
+      "breakpoints": true
     }
   ]
 }

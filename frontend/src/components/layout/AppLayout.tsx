@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../lib/utils';
-import { LayoutDashboard, Users, Download, LogOut, Menu, ShieldAlert, Building2, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, Users, Download, LogOut, Menu, ShieldAlert, Building2, BarChart2, Briefcase } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,6 +13,7 @@ export function AppLayout() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Students', href: '/students', icon: Users },
+    { name: 'Staff', href: '/staff', icon: Briefcase },
     ...(user?.role === 'admin'
       ? [
           { name: 'Schools', href: '/schools', icon: Building2 },
@@ -52,7 +53,10 @@ export function AppLayout() {
         
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive = location.pathname.startsWith(item.href);
+            const isActive =
+              item.href === '/dashboard'
+                ? location.pathname === '/dashboard'
+                : location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.name}

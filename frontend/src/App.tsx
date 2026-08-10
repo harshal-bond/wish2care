@@ -13,6 +13,9 @@ import { MentalHealthFormPage } from './pages/MentalHealthFormPage';
 import { SchoolAuditFormPage } from './pages/SchoolAuditFormPage';
 import { StudentProfilePage } from './pages/StudentProfilePage';
 import { StudentDataPage } from './pages/StudentDataPage';
+import { StaffPage } from './pages/StaffPage';
+import { StaffProfilePage } from './pages/StaffProfilePage';
+import { StaffFormPage } from './pages/StaffFormPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +51,9 @@ function App() {
               <Route path="/students/:id" element={<StudentProfilePage />} />
               <Route path="/students/:id/health-record" element={<StudentFormPage />} />
               <Route path="/students/:id/mental-health" element={<MentalHealthFormPage />} />
+              <Route path="/staff" element={<StaffPage />} />
+              <Route path="/staff/:id" element={<StaffProfilePage />} />
+              <Route path="/staff/:id/assessment" element={<StaffFormPage />} />
               <Route path="/schools" element={<ProtectedRoute requireAdmin><SchoolsPage /></ProtectedRoute>} />
               <Route path="/schools/:id/audit" element={<ProtectedRoute requireAdmin><SchoolAuditFormPage /></ProtectedRoute>} />
               <Route path="/student-data" element={<ProtectedRoute requireAdmin><StudentDataPage /></ProtectedRoute>} />
