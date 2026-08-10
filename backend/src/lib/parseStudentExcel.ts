@@ -1,19 +1,21 @@
-import ExcelJS from 'exceljs';
 import { studentSchoolUploadRowSchema } from '@wish2care/shared';
 import type { StudentSchoolUploadRow } from '@wish2care/shared';
+import { generateStudentCode, schoolInitials } from './studentCode.js';
 
 export interface ParsedStudentRow {
   rowNumber: number;
   data: StudentSchoolUploadRow;
 }
 
-function cellText(value: ExcelJS.CellValue): string {
+export { generateStudentCode, schoolInitials };
+
+function cellText(value: unknown): string {
   if (value == null) return '';
-  if (typeof value === 'object' && 'text' in value && value.text) {
-    return String(value.text).trim();
+  if (typeof value === 'object' && value !== null && 'text' in value && (value as { text?: unknown }).text) {
+    return String((value as { text: unknown }).text).trim();
   }
-  if (typeof value === 'object' && 'result' in value && value.result != null) {
-    return String(value.result).trim();
+  if (typeof value === 'object' && value !== null && 'result' in value && (value as { result?: unknown }).result != null) {
+    return String((value as { result: unknown }).result).trim();
   }
   return String(value).trim();
 }
@@ -29,7 +31,7 @@ function normalizeGender(raw: string): string {
   return raw.trim().toUpperCase().charAt(0);
 }
 
-function parseHeaderRow(row: ExcelJS.Row): Record<string, number> | null {
+function parseHeaderRow(row: { eachCell: (opts: { includeEmpty: boolean }, cb: (cell: { value: unknown }, colNumber: number) => void) => void }): Record<string, number> | null {
   const headers: Record<string, number> = {};
   row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
     const header = cellText(cell.value).toLowerCase();
@@ -56,7 +58,7 @@ function parseHeaderRow(row: ExcelJS.Row): Record<string, number> | null {
   return null;
 }
 
-function readMappedRow(row: ExcelJS.Row, columns: Record<string, number>): Record<string, string> {
+function readMappedRow(row: { getCell: (col: number) => { value: unknown } }, columns: Record<string, number>): Record<string, string> {
   const readCol = (key: string) =>
     columns[key] ? cellText(row.getCell(columns[key]).value) : '';
 
@@ -140,6 +142,8 @@ export async function parseStudentExcel(buffer: ArrayBuffer): Promise<{
   rows: ParsedStudentRow[];
   errors: Array<{ row: number; message: string }>;
 }> {
+  // Lazy-load ExcelJS so cold starts of /students etc. don't pay for it
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
 
@@ -190,28 +194,4 @@ export async function parseStudentExcel(buffer: ArrayBuffer): Promise<{
   }
 
   return { rows, errors };
-}
-
-/**
- * Derives a short prefix from a school name by taking the first letter
- * of each significant word (ignoring common words like "and", "of", "the").
- * e.g. "PES Modern High School" → "PMHS", "Government Boys School" → "GBS"
- */
-export function schoolInitials(name: string): string {
-  const stopWords = new Set(['and', 'of', 'the', 'a', 'an', 'for', 'to', 'in', 'at', '&']);
-  return name
-    .split(/\s+/)
-    .filter(w => w.length > 0 && !stopWords.has(w.toLowerCase()))
-    .map(w => w[0].toUpperCase())
-    .join('');
-}
-
-/**
- * Generates a student code in the format: <SchoolInitials><SchoolId>-<Seq>
- * e.g. "PES Modern" (ID 3) + sequence 7  → "PM3-007"
- */
-export function generateStudentCode(schoolName: string, schoolId: number, seq: number): string {
-  const prefix = schoolInitials(schoolName);
-  const paddedSeq = String(seq).padStart(3, '0');
-  return `${prefix}${schoolId}-${paddedSeq}`;
 }

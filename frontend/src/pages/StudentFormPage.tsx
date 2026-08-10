@@ -260,9 +260,9 @@ export function StudentFormPage() {
   const { data, isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['student', studentId],
     queryFn: () => fetchApi(`/students/${studentId}`),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const form = useForm<HealthRecordPartial>({

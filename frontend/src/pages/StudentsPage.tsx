@@ -45,7 +45,7 @@ export function StudentsPage() {
     queryFn: () => fetchApi('/students'),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
-    refetchOnMount: true,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 

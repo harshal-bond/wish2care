@@ -21,7 +21,7 @@ export function StaffPage() {
     queryFn: () => fetchApi('/staff'),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
-    refetchOnMount: true,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
