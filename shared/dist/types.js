@@ -1,6 +1,6 @@
 // ── Completion check helpers ───────────────────────────────────────────
 const filled = (v) => v !== null && v !== undefined && v !== '' && !(typeof v === 'number' && Number.isNaN(v));
-const SCREENING_SECTIONS = [
+export const SCREENING_SECTIONS = [
     {
         id: 'A',
         title: 'A — Anthropometry',
@@ -94,13 +94,18 @@ const SCREENING_SECTIONS = [
         ],
     },
 ];
+/** Missing field keys + labels for a single screening section (A, BP, B–G). */
+export function getMissingFieldsForSection(sectionId, record) {
+    const section = SCREENING_SECTIONS.find((s) => s.id === sectionId);
+    if (!section)
+        return [];
+    return section.fields.filter(({ key }) => !filled(record[key]));
+}
 /** Per-section list of unanswered screening fields (human-readable labels). */
 export function getMissingScreeningFields(record) {
     const missing = [];
     for (const section of SCREENING_SECTIONS) {
-        const fields = section.fields
-            .filter(({ key }) => !filled(record[key]))
-            .map(({ label }) => label);
+        const fields = getMissingFieldsForSection(section.id, record).map(({ label }) => label);
         if (fields.length > 0) {
             missing.push({
                 sectionId: section.id,

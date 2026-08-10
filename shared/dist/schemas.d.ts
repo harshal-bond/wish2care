@@ -144,6 +144,50 @@ export declare const studentUploadRowSchema: z.ZodObject<{
     localAddress?: string | null | undefined;
     area?: string | null | undefined;
 }>;
+export declare const staffSchema: z.ZodObject<{
+    staffCode: z.ZodOptional<z.ZodString>;
+    name: z.ZodString;
+    age: z.ZodNumber;
+    gender: z.ZodEnum<["M", "F"]>;
+    schoolId: z.ZodNumber;
+    designation: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
+    department: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
+    email: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
+    mobileNo: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
+}, "strip", z.ZodTypeAny, {
+    email: string | null;
+    name: string;
+    age: number;
+    gender: "M" | "F";
+    schoolId: number;
+    mobileNo: string | null;
+    designation: string | null;
+    department: string | null;
+    staffCode?: string | undefined;
+}, {
+    name: string;
+    age: number;
+    gender: "M" | "F";
+    schoolId: number;
+    email?: string | null | undefined;
+    mobileNo?: string | null | undefined;
+    staffCode?: string | undefined;
+    designation?: string | null | undefined;
+    department?: string | null | undefined;
+}>;
+export declare const staffAssessmentPartialSchema: z.ZodObject<{
+    staffId: z.ZodOptional<z.ZodNumber>;
+    assessmentComplete: z.ZodOptional<z.ZodBoolean>;
+    payload: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
+}, "strip", z.ZodTypeAny, {
+    staffId?: number | undefined;
+    assessmentComplete?: boolean | undefined;
+    payload?: Record<string, any> | null | undefined;
+}, {
+    staffId?: number | undefined;
+    assessmentComplete?: boolean | undefined;
+    payload?: Record<string, any> | null | undefined;
+}>;
 /** Row schema for bulk upload tied to a specific school (school comes from URL, not the sheet). */
 export declare const studentSchoolUploadRowSchema: z.ZodObject<{
     studentCode: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -246,6 +290,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     /** Explicitly marked complete (allows incomplete fields after user confirmation) */
     assessmentComplete: z.ZodEffects<z.ZodUnion<[z.ZodBoolean, z.ZodNull, z.ZodUndefined]>, boolean, boolean | null | undefined>;
 }, "strip", z.ZodTypeAny, {
+    assessmentComplete: boolean;
     studentId: number;
     height: number | null;
     weight: number | null;
@@ -273,7 +318,6 @@ export declare const healthRecordSchema: z.ZodObject<{
     concentration: "Good" | "Average" | "Poor" | null;
     handHygiene: "Good" | "Average" | "Poor" | null;
     yesNoRemarks: Record<string, string> | null;
-    assessmentComplete: boolean;
     chronicDisease?: YesNoVal | undefined;
     frequentFever?: YesNoVal | undefined;
     weightLoss?: YesNoVal | undefined;
@@ -316,6 +360,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     dentalCheckup?: unknown;
     visionScreening?: unknown;
     date?: string | null | undefined;
+    assessmentComplete?: boolean | null | undefined;
     height?: string | number | null | undefined;
     weight?: string | number | null | undefined;
     muac?: string | number | null | undefined;
@@ -342,7 +387,6 @@ export declare const healthRecordSchema: z.ZodObject<{
     concentration?: "" | "Good" | "Average" | "Poor" | null | undefined;
     handHygiene?: "" | "Good" | "Average" | "Poor" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
-    assessmentComplete?: boolean | null | undefined;
 }>;
 export declare const healthRecordPartialSchema: z.ZodObject<{
     chronicDisease: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
@@ -365,6 +409,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     dentalCheckup: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
     visionScreening: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
     date: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    assessmentComplete: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodBoolean, z.ZodNull, z.ZodUndefined]>, boolean, boolean | null | undefined>>;
     studentId: z.ZodNumber;
     height: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodNumber, z.ZodString, z.ZodNull, z.ZodUndefined]>, number | null, string | number | null | undefined>>;
     weight: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodNumber, z.ZodString, z.ZodNull, z.ZodUndefined]>, number | null, string | number | null | undefined>>;
@@ -392,7 +437,6 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     concentration: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>>;
     handHygiene: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>>;
     yesNoRemarks: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodRecord<z.ZodString, z.ZodString>, z.ZodNull, z.ZodUndefined]>, Record<string, string> | null, Record<string, string> | null | undefined>>;
-    assessmentComplete: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodBoolean, z.ZodNull, z.ZodUndefined]>, boolean, boolean | null | undefined>>;
 }, "strip", z.ZodTypeAny, {
     studentId: number;
     chronicDisease?: YesNoVal | undefined;
@@ -415,6 +459,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     dentalCheckup?: YesNoVal | undefined;
     visionScreening?: YesNoVal | undefined;
     date?: string | null | undefined;
+    assessmentComplete?: boolean | undefined;
     height?: number | null | undefined;
     weight?: number | null | undefined;
     muac?: number | null | undefined;
@@ -441,7 +486,6 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     concentration?: "Good" | "Average" | "Poor" | null | undefined;
     handHygiene?: "Good" | "Average" | "Poor" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
-    assessmentComplete?: boolean | undefined;
 }, {
     studentId: number;
     chronicDisease?: unknown;
@@ -464,6 +508,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     dentalCheckup?: unknown;
     visionScreening?: unknown;
     date?: string | null | undefined;
+    assessmentComplete?: boolean | null | undefined;
     height?: string | number | null | undefined;
     weight?: string | number | null | undefined;
     muac?: string | number | null | undefined;
@@ -490,7 +535,6 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     concentration?: "" | "Good" | "Average" | "Poor" | null | undefined;
     handHygiene?: "" | "Good" | "Average" | "Poor" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
-    assessmentComplete?: boolean | null | undefined;
 }>;
 export declare const exportRequestSchema: z.ZodObject<{
     schoolId: z.ZodOptional<z.ZodNumber>;

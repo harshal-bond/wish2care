@@ -26,8 +26,10 @@ import {
   HAND_HYGIENE_OPTIONS,
   isRecordComplete,
   getMissingScreeningFields,
+  getMissingFieldsForSection,
   computeScreeningScores,
   computeBpClass,
+  type HealthRecord,
 } from '@wish2care/shared';
 import type { HealthRecordPartial, MissingSectionFields } from '@wish2care/shared';
 import { fetchApi } from '../lib/api';
@@ -71,23 +73,40 @@ const steps = [
   { id: 10, name: 'Review & Scores', icon: ClipboardCheck },
 ];
 
+/** UI step → screening section id (steps 2–9). */
+const STEP_SECTION_ID: Record<number, string> = {
+  2: 'A',
+  3: 'BP',
+  4: 'B',
+  5: 'C',
+  6: 'D',
+  7: 'E',
+  8: 'F',
+  9: 'G',
+};
+
 type FormControl = ReturnType<typeof useForm<HealthRecordPartial>>['control'];
 type FormSetValue = ReturnType<typeof useForm<HealthRecordPartial>>['setValue'];
+type FormRegister = ReturnType<typeof useForm<HealthRecordPartial>>['register'];
 
 function FieldSelect({
   label,
   name,
   control,
   options,
+  error,
 }: {
   label: string;
   name: keyof HealthRecordPartial;
   control: FormControl;
   options: readonly string[];
+  error?: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-semibold text-gray-700">{label}</label>
+    <div className="space-y-2" data-field={String(name)}>
+      <label className={cn('text-sm font-semibold', error ? 'text-red-600' : 'text-gray-700')}>
+        {label}
+      </label>
       <Controller
         name={name}
         control={control}
@@ -97,9 +116,11 @@ function FieldSelect({
             value={field.value as string | null | undefined}
             onChange={field.onChange}
             placeholder="Select..."
+            error={error}
           />
         )}
       />
+      {error ? <p className="text-xs font-medium text-red-600">Required</p> : null}
     </div>
   );
 }
@@ -111,12 +132,14 @@ function YesNoFieldWithRemarks({
   control,
   setValue,
   options = YES_NO,
+  error,
 }: {
   label: string;
   name: keyof HealthRecordPartial;
   control: FormControl;
   setValue: FormSetValue;
   options?: readonly string[];
+  error?: boolean;
 }) {
   const answer = useWatch({ control, name });
   const remarksMap = useWatch({ control, name: 'yesNoRemarks' }) || {};
@@ -124,8 +147,10 @@ function YesNoFieldWithRemarks({
   const remarkKey = String(name);
 
   return (
-    <div className="space-y-2 sm:col-span-1">
-      <label className="text-sm font-semibold text-gray-700">{label}</label>
+    <div className="space-y-2 sm:col-span-1" data-field={String(name)}>
+      <label className={cn('text-sm font-semibold', error ? 'text-red-600' : 'text-gray-700')}>
+        {label}
+      </label>
       <Controller
         name={name}
         control={control}
@@ -144,9 +169,11 @@ function YesNoFieldWithRemarks({
               }
             }}
             placeholder="Select..."
+            error={error}
           />
         )}
       />
+      {error ? <p className="text-xs font-medium text-red-600">Required</p> : null}
       {showRemarks && (
         <div className="pt-1">
           <label className="text-xs font-semibold text-gray-500">Remarks / Comments</label>
@@ -164,6 +191,41 @@ function YesNoFieldWithRemarks({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  name,
+  register,
+  error,
+  placeholder,
+  step,
+}: {
+  label: string;
+  name: keyof HealthRecordPartial;
+  register: FormRegister;
+  error?: boolean;
+  placeholder?: string;
+  step?: string;
+}) {
+  return (
+    <div className="space-y-2" data-field={String(name)}>
+      <label className={cn('text-sm font-semibold', error ? 'text-red-600' : 'text-gray-700')}>
+        {label}
+      </label>
+      <Input
+        type="number"
+        step={step}
+        placeholder={placeholder}
+        className={cn(
+          'h-12 text-base rounded-xl',
+          error ? 'border-red-400 focus-visible:ring-red-500' : 'border-gray-200'
+        )}
+        {...register(name, { valueAsNumber: true })}
+      />
+      {error ? <p className="text-xs font-medium text-red-600">Required</p> : null}
     </div>
   );
 }
@@ -187,9 +249,13 @@ export function StudentFormPage() {
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [showMissingConfirm, setShowMissingConfirm] = useState(false);
   const [missingSections, setMissingSections] = useState<MissingSectionFields[]>([]);
+  const [incompleteKeys, setIncompleteKeys] = useState<Set<string>>(new Set());
+  const [sectionBlockMessage, setSectionBlockMessage] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  const isFieldMissing = (name: keyof HealthRecordPartial) => incompleteKeys.has(String(name));
 
   const { data, isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['student', studentId],
@@ -211,6 +277,30 @@ export function StudentFormPage() {
     studentId,
   });
 
+  const validateStep = (stepId: number): boolean => {
+    const sectionId = STEP_SECTION_ID[stepId];
+    if (!sectionId) {
+      setIncompleteKeys(new Set());
+      setSectionBlockMessage(null);
+      return true;
+    }
+    const missing = getMissingFieldsForSection(sectionId, form.getValues() as Partial<HealthRecord>);
+    if (missing.length === 0) {
+      setIncompleteKeys(new Set());
+      setSectionBlockMessage(null);
+      return true;
+    }
+    setIncompleteKeys(new Set(missing.map((m) => String(m.key))));
+    setSectionBlockMessage(
+      `Please complete ${missing.length} required field${missing.length === 1 ? '' : 's'} before continuing.`
+    );
+    requestAnimationFrame(() => {
+      const first = document.querySelector(`[data-field="${String(missing[0].key)}"]`);
+      first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return false;
+  };
+
   // Hydrate from the server snapshot. Never overwrite while the user is typing or saving —
   // a mid-save refetch was wiping rapid multi-field clicks down to a single value.
   useEffect(() => {
@@ -227,6 +317,23 @@ export function StudentFormPage() {
 
   const watched = useWatch({ control: form.control });
   const scores = useMemo(() => computeScreeningScores(watched || {}), [watched]);
+
+  // Clear field highlights as the user fills them in
+  useEffect(() => {
+    setIncompleteKeys((prev) => {
+      if (prev.size === 0) return prev;
+      const sectionId = STEP_SECTION_ID[activeStep];
+      if (!sectionId) return prev;
+      const stillMissing = getMissingFieldsForSection(
+        sectionId,
+        (watched || {}) as Partial<HealthRecord>
+      );
+      const next = new Set(stillMissing.map((m) => String(m.key)));
+      if (next.size === 0) setSectionBlockMessage(null);
+      if (next.size === prev.size && [...next].every((k) => prev.has(k))) return prev;
+      return next;
+    });
+  }, [watched, activeStep]);
 
   // Auto-populate BP Class from systolic / diastolic (don't dirty until user entered readings)
   useEffect(() => {
@@ -259,17 +366,27 @@ export function StudentFormPage() {
   const today = new Date().toISOString().split('T')[0];
 
   const handleNext = async () => {
+    if (!validateStep(activeStep)) return;
     const saved = await forceSave();
-    if (!saved && form.formState.isDirty) {
-      // Still allow navigation if nothing to save failed hard — but block if dirty save failed
-      return;
-    }
+    if (!saved && form.formState.isDirty) return;
     setActiveStep((prev) => Math.min(prev + 1, steps.length));
   };
 
   const handlePrev = async () => {
     await forceSave();
+    setIncompleteKeys(new Set());
+    setSectionBlockMessage(null);
     setActiveStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const goToStep = async (targetStep: number) => {
+    if (targetStep === activeStep) return;
+    // Allow revisiting earlier steps; gate forward jumps through current section
+    if (targetStep > activeStep && !validateStep(activeStep)) return;
+    await forceSave();
+    setIncompleteKeys(new Set());
+    setSectionBlockMessage(null);
+    setActiveStep(targetStep);
   };
 
   const isSubmitted =
@@ -317,6 +434,24 @@ export function StudentFormPage() {
     await finalizeAssessment();
   };
 
+  const jumpToFirstMissingSection = () => {
+    if (missingSections.length === 0) return;
+    const sectionId = missingSections[0].sectionId;
+    const stepId = Number(
+      Object.entries(STEP_SECTION_ID).find(([, id]) => id === sectionId)?.[0] || 2
+    );
+    setShowMissingConfirm(false);
+    setActiveStep(stepId);
+    // Highlight that section's missing fields
+    requestAnimationFrame(() => validateStep(stepId));
+  };
+
+  const stepIncomplete = (stepId: number) => {
+    const sectionId = STEP_SECTION_ID[stepId];
+    if (!sectionId) return false;
+    return getMissingFieldsForSection(sectionId, (watched || {}) as Partial<HealthRecord>).length > 0;
+  };
+
   const goToStudentList = () => {
     setShowSubmitSuccess(false);
     navigate('/students');
@@ -337,10 +472,10 @@ export function StudentFormPage() {
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-gray-900">Missing answers</h3>
+                  <h3 className="text-lg font-bold text-gray-900">Complete all sections first</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">
-                    Some fields are still blank. Review them below, or proceed to mark this assessment
-                    complete anyway.
+                    Some fields are still blank. Go to the first incomplete section and fill the
+                    highlighted fields before submitting.
                   </p>
                 </div>
               </div>
@@ -364,21 +499,14 @@ export function StudentFormPage() {
                 onClick={() => setShowMissingConfirm(false)}
                 className="flex-1 h-11 rounded-xl font-semibold border-gray-200"
               >
-                Go back
+                Close
               </Button>
               <Button
                 disabled={isCompleting}
-                onClick={() => void finalizeAssessment()}
-                className="flex-1 h-11 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={jumpToFirstMissingSection}
+                className="flex-1 h-11 rounded-xl font-bold bg-gray-950 hover:bg-gray-800 text-white"
               >
-                {isCompleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Completing...
-                  </>
-                ) : (
-                  'Proceed anyway'
-                )}
+                Go to missing fields
               </Button>
             </div>
           </motion.div>
@@ -486,14 +614,12 @@ export function StudentFormPage() {
           {steps.map((step) => {
             const Icon = step.icon;
             const isActive = activeStep === step.id;
+            const incomplete = stepIncomplete(step.id);
             return (
               <button
                 key={step.id}
                 type="button"
-                onClick={async () => {
-                  await forceSave();
-                  setActiveStep(step.id);
-                }}
+                onClick={() => void goToStep(step.id)}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold whitespace-nowrap text-left transition-all duration-150 shrink-0 w-full',
                   isActive
@@ -501,8 +627,11 @@ export function StudentFormPage() {
                     : 'text-gray-500 hover:bg-white hover:text-gray-950 border border-transparent hover:border-gray-100'
                 )}
               >
-                <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-gray-400')} />
-                <span className="truncate">{step.name}</span>
+                <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : incomplete ? 'text-amber-500' : 'text-gray-400')} />
+                <span className="truncate flex-1">{step.name}</span>
+                {incomplete && !isActive ? (
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                ) : null}
               </button>
             );
           })}
@@ -520,6 +649,12 @@ export function StudentFormPage() {
               transition={{ duration: 0.15 }}
             >
               <Card className="border-gray-100 bg-white shadow-sm rounded-2xl p-6 md:p-8">
+                {sectionBlockMessage ? (
+                  <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                    <p className="text-sm font-medium text-red-700">{sectionBlockMessage}</p>
+                  </div>
+                ) : null}
                 <fieldset disabled={isSubmitted} className="min-w-0">
                   {activeStep === 1 && (
                     <div className="space-y-6">
@@ -556,46 +691,10 @@ export function StudentFormPage() {
                         <p className="text-sm text-gray-400 mt-1">Height, weight, MUAC and waist. BMI is calculated automatically.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Height (cm)</label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 155"
-                            className="h-12 text-base rounded-xl border-gray-200"
-                            {...form.register('height', { valueAsNumber: true })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Weight (kg)</label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 45"
-                            className="h-12 text-base rounded-xl border-gray-200"
-                            {...form.register('weight', { valueAsNumber: true })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">MUAC (cm)</label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 22"
-                            className="h-12 text-base rounded-xl border-gray-200"
-                            {...form.register('muac', { valueAsNumber: true })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Waist Circumference (cm)</label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 60"
-                            className="h-12 text-base rounded-xl border-gray-200"
-                            {...form.register('waistCircumference', { valueAsNumber: true })}
-                          />
-                        </div>
+                        <NumberField label="Height (cm)" name="height" register={form.register} error={isFieldMissing('height')} placeholder="e.g. 155" step="0.1" />
+                        <NumberField label="Weight (kg)" name="weight" register={form.register} error={isFieldMissing('weight')} placeholder="e.g. 45" step="0.1" />
+                        <NumberField label="MUAC (cm)" name="muac" register={form.register} error={isFieldMissing('muac')} placeholder="e.g. 22" step="0.1" />
+                        <NumberField label="Waist Circumference (cm)" name="waistCircumference" register={form.register} error={isFieldMissing('waistCircumference')} placeholder="e.g. 60" step="0.1" />
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2 pt-2">
                         <ScorePill label="BMI (auto)" value={scores.bmi} />
@@ -613,34 +712,9 @@ export function StudentFormPage() {
                         </p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Systolic (mmHg)</label>
-                          <Input
-                            type="number"
-                            placeholder="e.g. 108"
-                            className="h-12 text-base rounded-xl border-gray-200"
-                            {...form.register('systolic', { valueAsNumber: true })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Diastolic (mmHg)</label>
-                          <Input
-                            type="number"
-                            placeholder="e.g. 70"
-                            className="h-12 text-base rounded-xl border-gray-200"
-                            {...form.register('diastolic', { valueAsNumber: true })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Random Blood Sugar (mg/dL)</label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 92"
-                            className="h-12 text-base rounded-xl border-gray-200"
-                            {...form.register('randomBloodSugar', { valueAsNumber: true })}
-                          />
-                        </div>
+                        <NumberField label="Systolic (mmHg)" name="systolic" register={form.register} error={isFieldMissing('systolic')} placeholder="e.g. 108" />
+                        <NumberField label="Diastolic (mmHg)" name="diastolic" register={form.register} error={isFieldMissing('diastolic')} placeholder="e.g. 70" />
+                        <NumberField label="Random Blood Sugar (mg/dL)" name="randomBloodSugar" register={form.register} error={isFieldMissing('randomBloodSugar')} placeholder="e.g. 92" step="0.1" />
                       </div>
                       <p className="text-xs text-gray-400">
                         Normal range: Systolic 120–140 mmHg · Diastolic 80–100 mmHg. BP Class is calculated automatically.
@@ -659,13 +733,13 @@ export function StudentFormPage() {
                         <p className="text-sm text-gray-400 mt-1">Diet quality screening responses.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <FieldSelect label="Breakfast" name="breakfast" control={form.control} options={BREAKFAST_OPTIONS} />
-                        <FieldSelect label="Fruit Intake" name="fruitIntake" control={form.control} options={FRUIT_INTAKE_OPTIONS} />
-                        <FieldSelect label="Vegetables" name="vegetables" control={form.control} options={VEGETABLES_OPTIONS} />
-                        <FieldSelect label="Protein Intake" name="proteinIntake" control={form.control} options={PROTEIN_INTAKE_OPTIONS} />
-                        <FieldSelect label="Junk Food" name="junkFood" control={form.control} options={JUNK_FOOD_OPTIONS} />
-                        <FieldSelect label="Sugary Drinks" name="sugaryDrinks" control={form.control} options={SUGARY_DRINKS_OPTIONS} />
-                        <FieldSelect label="Water Intake" name="waterIntake" control={form.control} options={WATER_INTAKE_OPTIONS} />
+                        <FieldSelect label="Breakfast" name="breakfast" control={form.control} options={BREAKFAST_OPTIONS} error={isFieldMissing('breakfast')} />
+                        <FieldSelect label="Fruit Intake" name="fruitIntake" control={form.control} options={FRUIT_INTAKE_OPTIONS} error={isFieldMissing('fruitIntake')} />
+                        <FieldSelect label="Vegetables" name="vegetables" control={form.control} options={VEGETABLES_OPTIONS} error={isFieldMissing('vegetables')} />
+                        <FieldSelect label="Protein Intake" name="proteinIntake" control={form.control} options={PROTEIN_INTAKE_OPTIONS} error={isFieldMissing('proteinIntake')} />
+                        <FieldSelect label="Junk Food" name="junkFood" control={form.control} options={JUNK_FOOD_OPTIONS} error={isFieldMissing('junkFood')} />
+                        <FieldSelect label="Sugary Drinks" name="sugaryDrinks" control={form.control} options={SUGARY_DRINKS_OPTIONS} error={isFieldMissing('sugaryDrinks')} />
+                        <FieldSelect label="Water Intake" name="waterIntake" control={form.control} options={WATER_INTAKE_OPTIONS} error={isFieldMissing('waterIntake')} />
                       </div>
                     </div>
                   )}
@@ -677,12 +751,12 @@ export function StudentFormPage() {
                         <p className="text-sm text-gray-400 mt-1">Activity, screen time, sleep and substance use.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <FieldSelect label="Physical Activity" name="physicalActivity" control={form.control} options={PHYSICAL_ACTIVITY_OPTIONS} />
-                        <FieldSelect label="Screen Time" name="screenTime" control={form.control} options={SCREEN_TIME_OPTIONS} />
-                        <FieldSelect label="Outdoor Play" name="outdoorPlay" control={form.control} options={OUTDOOR_PLAY_OPTIONS} />
-                        <FieldSelect label="Sleep Hours" name="sleepHours" control={form.control} options={SLEEP_HOURS_OPTIONS} />
-                        <FieldSelect label="Smoking" name="smoking" control={form.control} options={SMOKING_OPTIONS} />
-                        <FieldSelect label="Alcohol" name="alcohol" control={form.control} options={ALCOHOL_OPTIONS} />
+                        <FieldSelect label="Physical Activity" name="physicalActivity" control={form.control} options={PHYSICAL_ACTIVITY_OPTIONS} error={isFieldMissing('physicalActivity')} />
+                        <FieldSelect label="Screen Time" name="screenTime" control={form.control} options={SCREEN_TIME_OPTIONS} error={isFieldMissing('screenTime')} />
+                        <FieldSelect label="Outdoor Play" name="outdoorPlay" control={form.control} options={OUTDOOR_PLAY_OPTIONS} error={isFieldMissing('outdoorPlay')} />
+                        <FieldSelect label="Sleep Hours" name="sleepHours" control={form.control} options={SLEEP_HOURS_OPTIONS} error={isFieldMissing('sleepHours')} />
+                        <FieldSelect label="Smoking" name="smoking" control={form.control} options={SMOKING_OPTIONS} error={isFieldMissing('smoking')} />
+                        <FieldSelect label="Alcohol" name="alcohol" control={form.control} options={ALCOHOL_OPTIONS} error={isFieldMissing('alcohol')} />
                       </div>
                     </div>
                   )}
@@ -694,13 +768,13 @@ export function StudentFormPage() {
                         <p className="text-sm text-gray-400 mt-1">Yes/No medical history flags. Remarks appear when Yes is selected.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <YesNoFieldWithRemarks label="Chronic Disease" name="chronicDisease" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Frequent Fever" name="frequentFever" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Weight Loss" name="weightLoss" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Poor Appetite" name="poorAppetite" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Repeated Infection" name="repeatedInfection" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Hospitalisation" name="hospitalisation" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Medication" name="medication" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Chronic Disease" name="chronicDisease" control={form.control} setValue={form.setValue} error={isFieldMissing('chronicDisease')} />
+                        <YesNoFieldWithRemarks label="Frequent Fever" name="frequentFever" control={form.control} setValue={form.setValue} error={isFieldMissing('frequentFever')} />
+                        <YesNoFieldWithRemarks label="Weight Loss" name="weightLoss" control={form.control} setValue={form.setValue} error={isFieldMissing('weightLoss')} />
+                        <YesNoFieldWithRemarks label="Poor Appetite" name="poorAppetite" control={form.control} setValue={form.setValue} error={isFieldMissing('poorAppetite')} />
+                        <YesNoFieldWithRemarks label="Repeated Infection" name="repeatedInfection" control={form.control} setValue={form.setValue} error={isFieldMissing('repeatedInfection')} />
+                        <YesNoFieldWithRemarks label="Hospitalisation" name="hospitalisation" control={form.control} setValue={form.setValue} error={isFieldMissing('hospitalisation')} />
+                        <YesNoFieldWithRemarks label="Medication" name="medication" control={form.control} setValue={form.setValue} error={isFieldMissing('medication')} />
                       </div>
                     </div>
                   )}
@@ -712,10 +786,10 @@ export function StudentFormPage() {
                         <p className="text-sm text-gray-400 mt-1">Stress, mood, concentration and bullying screen.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <FieldSelect label="Stress" name="stress" control={form.control} options={STRESS_OPTIONS} />
-                        <FieldSelect label="Mood" name="mood" control={form.control} options={MOOD_OPTIONS} />
-                        <FieldSelect label="Concentration" name="concentration" control={form.control} options={CONCENTRATION_OPTIONS} />
-                        <YesNoFieldWithRemarks label="Bullying" name="bullying" control={form.control} setValue={form.setValue} />
+                        <FieldSelect label="Stress" name="stress" control={form.control} options={STRESS_OPTIONS} error={isFieldMissing('stress')} />
+                        <FieldSelect label="Mood" name="mood" control={form.control} options={MOOD_OPTIONS} error={isFieldMissing('mood')} />
+                        <FieldSelect label="Concentration" name="concentration" control={form.control} options={CONCENTRATION_OPTIONS} error={isFieldMissing('concentration')} />
+                        <YesNoFieldWithRemarks label="Bullying" name="bullying" control={form.control} setValue={form.setValue} error={isFieldMissing('bullying')} />
                       </div>
                     </div>
                   )}
@@ -727,13 +801,13 @@ export function StudentFormPage() {
                         <p className="text-sm text-gray-400 mt-1">Observed clinical findings (Yes/No). Remarks appear when Yes is selected.</p>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2">
-                        <YesNoFieldWithRemarks label="Pallor" name="pallor" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Dental Caries" name="dentalCaries" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Poor Oral Hygiene" name="poorOralHygiene" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Vision Problem" name="visionProblem" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Hair Changes" name="hairChanges" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Skin Changes" name="skinChanges" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Clubbing" name="clubbing" control={form.control} setValue={form.setValue} />
+                        <YesNoFieldWithRemarks label="Pallor" name="pallor" control={form.control} setValue={form.setValue} error={isFieldMissing('pallor')} />
+                        <YesNoFieldWithRemarks label="Dental Caries" name="dentalCaries" control={form.control} setValue={form.setValue} error={isFieldMissing('dentalCaries')} />
+                        <YesNoFieldWithRemarks label="Poor Oral Hygiene" name="poorOralHygiene" control={form.control} setValue={form.setValue} error={isFieldMissing('poorOralHygiene')} />
+                        <YesNoFieldWithRemarks label="Vision Problem" name="visionProblem" control={form.control} setValue={form.setValue} error={isFieldMissing('visionProblem')} />
+                        <YesNoFieldWithRemarks label="Hair Changes" name="hairChanges" control={form.control} setValue={form.setValue} error={isFieldMissing('hairChanges')} />
+                        <YesNoFieldWithRemarks label="Skin Changes" name="skinChanges" control={form.control} setValue={form.setValue} error={isFieldMissing('skinChanges')} />
+                        <YesNoFieldWithRemarks label="Clubbing" name="clubbing" control={form.control} setValue={form.setValue} error={isFieldMissing('clubbing')} />
                       </div>
                     </div>
                   )}
@@ -751,6 +825,7 @@ export function StudentFormPage() {
                           control={form.control}
                           setValue={form.setValue}
                           options={YES_PARTIAL_NO}
+                          error={isFieldMissing('vaccinationComplete')}
                         />
                         <YesNoFieldWithRemarks
                           label="Deworming"
@@ -758,10 +833,11 @@ export function StudentFormPage() {
                           control={form.control}
                           setValue={form.setValue}
                           options={YES_PARTIAL_NO}
+                          error={isFieldMissing('deworming')}
                         />
-                        <FieldSelect label="Hand Hygiene" name="handHygiene" control={form.control} options={HAND_HYGIENE_OPTIONS} />
-                        <YesNoFieldWithRemarks label="Dental Check-up" name="dentalCheckup" control={form.control} setValue={form.setValue} />
-                        <YesNoFieldWithRemarks label="Vision Screening" name="visionScreening" control={form.control} setValue={form.setValue} />
+                        <FieldSelect label="Hand Hygiene" name="handHygiene" control={form.control} options={HAND_HYGIENE_OPTIONS} error={isFieldMissing('handHygiene')} />
+                        <YesNoFieldWithRemarks label="Dental Check-up" name="dentalCheckup" control={form.control} setValue={form.setValue} error={isFieldMissing('dentalCheckup')} />
+                        <YesNoFieldWithRemarks label="Vision Screening" name="visionScreening" control={form.control} setValue={form.setValue} error={isFieldMissing('visionScreening')} />
                       </div>
                     </div>
                   )}

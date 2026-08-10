@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, integer, boolean, real, jsonb, text } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, timestamp, integer, boolean, real, jsonb, text, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // ── Schools ────────────────────────────────────────────────────────────
@@ -41,6 +41,40 @@ export const students = pgTable('students', {
     .notNull()
     .references(() => schools.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  schoolIdIdx: index('students_school_id_idx').on(t.schoolId),
+}));
+
+// ── Staff (college employees as screenees — not app login workers) ─────
+export const staff = pgTable('staff', {
+  id: serial('id').primaryKey(),
+  staffCode: varchar('staff_code', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  age: real('age').notNull(),
+  gender: varchar('gender', { length: 10 }).notNull(), // 'M' | 'F'
+  designation: varchar('designation', { length: 255 }),
+  department: varchar('department', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  mobileNo: varchar('mobile_no', { length: 20 }),
+  schoolId: integer('school_id')
+    .notNull()
+    .references(() => schools.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  schoolIdIdx: index('staff_school_id_idx').on(t.schoolId),
+}));
+
+// Stub assessment row — questionnaire fields arrive later via payload / columns
+export const staffAssessments = pgTable('staff_assessments', {
+  id: serial('id').primaryKey(),
+  staffId: integer('staff_id')
+    .notNull()
+    .unique()
+    .references(() => staff.id, { onDelete: 'cascade' }),
+  assessmentComplete: boolean('assessment_complete').default(false).notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown> | null>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // ── Health Records (1-to-1 with Student) ───────────────────────────────
@@ -145,6 +179,7 @@ export const healthRecords = pgTable('health_records', {
 // ── Relations ──────────────────────────────────────────────────────────
 export const schoolsRelations = relations(schools, ({ many }) => ({
   students: many(students),
+  staff: many(staff),
   workers: many(workers),
 }));
 
@@ -156,6 +191,24 @@ export const studentsRelations = relations(students, ({ one }) => ({
   healthRecord: one(healthRecords, {
     fields: [students.id],
     references: [healthRecords.studentId],
+  }),
+}));
+
+export const staffRelations = relations(staff, ({ one }) => ({
+  school: one(schools, {
+    fields: [staff.schoolId],
+    references: [schools.id],
+  }),
+  assessment: one(staffAssessments, {
+    fields: [staff.id],
+    references: [staffAssessments.staffId],
+  }),
+}));
+
+export const staffAssessmentsRelations = relations(staffAssessments, ({ one }) => ({
+  staffMember: one(staff, {
+    fields: [staffAssessments.staffId],
+    references: [staff.id],
   }),
 }));
 

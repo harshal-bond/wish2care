@@ -9,6 +9,8 @@ import type {
   healthRecordPartialSchema,
   exportRequestSchema,
   schoolSchema,
+  staffSchema,
+  staffAssessmentPartialSchema,
 } from './schemas.js';
 
 // ── Inferred types from schemas ────────────────────────────────────────
@@ -27,6 +29,8 @@ export type HealthRecordInput = z.infer<typeof healthRecordSchema>;
 export type HealthRecordPartial = z.infer<typeof healthRecordPartialSchema>;
 export type ExportRequest = z.infer<typeof exportRequestSchema>;
 export type SchoolInput = z.infer<typeof schoolSchema>;
+export type StaffInput = z.infer<typeof staffSchema>;
+export type StaffAssessmentPartial = z.infer<typeof staffAssessmentPartialSchema>;
 
 // ── API response types ─────────────────────────────────────────────────
 export interface School {
@@ -137,6 +141,34 @@ export interface HealthRecord {
   updatedAt: string | Date;
 }
 
+export interface Staff {
+  id: number;
+  staffCode: string;
+  name: string;
+  age: number;
+  gender: 'M' | 'F';
+  designation?: string | null;
+  department?: string | null;
+  email?: string | null;
+  mobileNo?: string | null;
+  schoolId: number;
+  school?: School;
+  assessment?: StaffAssessment | null;
+  createdAt: string | Date;
+  _status?: {
+    isComplete: boolean;
+  };
+}
+
+export interface StaffAssessment {
+  id: number;
+  staffId: number;
+  assessmentComplete: boolean;
+  payload: Record<string, unknown> | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 export interface Worker {
   id: number;
   name: string;
@@ -185,7 +217,7 @@ const filled = (v: unknown) =>
 
 type SectionField = { key: keyof HealthRecord; label: string };
 
-const SCREENING_SECTIONS: Array<{ id: string; title: string; fields: SectionField[] }> = [
+export const SCREENING_SECTIONS: Array<{ id: string; title: string; fields: SectionField[] }> = [
   {
     id: 'A',
     title: 'A — Anthropometry',
@@ -286,15 +318,23 @@ export type MissingSectionFields = {
   fields: string[];
 };
 
+/** Missing field keys + labels for a single screening section (A, BP, B–G). */
+export function getMissingFieldsForSection(
+  sectionId: string,
+  record: Partial<HealthRecord>
+): Array<{ key: keyof HealthRecord; label: string }> {
+  const section = SCREENING_SECTIONS.find((s) => s.id === sectionId);
+  if (!section) return [];
+  return section.fields.filter(({ key }) => !filled(record[key]));
+}
+
 /** Per-section list of unanswered screening fields (human-readable labels). */
 export function getMissingScreeningFields(
   record: Partial<HealthRecord>
 ): MissingSectionFields[] {
   const missing: MissingSectionFields[] = [];
   for (const section of SCREENING_SECTIONS) {
-    const fields = section.fields
-      .filter(({ key }) => !filled(record[key]))
-      .map(({ label }) => label);
+    const fields = getMissingFieldsForSection(section.id, record).map(({ label }) => label);
     if (fields.length > 0) {
       missing.push({
         sectionId: section.id,

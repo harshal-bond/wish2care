@@ -72,6 +72,23 @@ export const studentUploadRowSchema = z.object({
     localAddress: optionalString(),
     area: optionalString(),
 });
+// ── Staff schema (college employees as screenees) ──────────────────────
+export const staffSchema = z.object({
+    staffCode: z.string().optional(),
+    name: z.string().min(1, 'Staff name is required'),
+    age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
+    gender: z.enum(GENDER_OPTIONS),
+    schoolId: z.coerce.number().int().positive(),
+    designation: optionalString(),
+    department: optionalString(),
+    email: optionalString(),
+    mobileNo: optionalString(),
+});
+export const staffAssessmentPartialSchema = z.object({
+    staffId: z.coerce.number().int().positive().optional(),
+    assessmentComplete: z.boolean().optional(),
+    payload: z.record(z.any()).nullable().optional(),
+});
 /** Row schema for bulk upload tied to a specific school (school comes from URL, not the sheet). */
 export const studentSchoolUploadRowSchema = z.object({
     studentCode: z.string().optional().nullable(),

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { loginSchema, registerWorkerSchema, studentSchema, studentUploadRowSchema, studentSchoolUploadRowSchema, healthRecordSchema, healthRecordPartialSchema, exportRequestSchema, schoolSchema } from './schemas.js';
+import type { loginSchema, registerWorkerSchema, studentSchema, studentUploadRowSchema, studentSchoolUploadRowSchema, healthRecordSchema, healthRecordPartialSchema, exportRequestSchema, schoolSchema, staffSchema, staffAssessmentPartialSchema } from './schemas.js';
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterWorkerInput = z.infer<typeof registerWorkerSchema>;
 export type StudentInput = z.infer<typeof studentSchema>;
@@ -17,6 +17,8 @@ export type HealthRecordInput = z.infer<typeof healthRecordSchema>;
 export type HealthRecordPartial = z.infer<typeof healthRecordPartialSchema>;
 export type ExportRequest = z.infer<typeof exportRequestSchema>;
 export type SchoolInput = z.infer<typeof schoolSchema>;
+export type StaffInput = z.infer<typeof staffSchema>;
+export type StaffAssessmentPartial = z.infer<typeof staffAssessmentPartialSchema>;
 export interface School {
     id: number;
     name: string;
@@ -103,6 +105,32 @@ export interface HealthRecord {
     createdAt: string | Date;
     updatedAt: string | Date;
 }
+export interface Staff {
+    id: number;
+    staffCode: string;
+    name: string;
+    age: number;
+    gender: 'M' | 'F';
+    designation?: string | null;
+    department?: string | null;
+    email?: string | null;
+    mobileNo?: string | null;
+    schoolId: number;
+    school?: School;
+    assessment?: StaffAssessment | null;
+    createdAt: string | Date;
+    _status?: {
+        isComplete: boolean;
+    };
+}
+export interface StaffAssessment {
+    id: number;
+    staffId: number;
+    assessmentComplete: boolean;
+    payload: Record<string, unknown> | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+}
 export interface Worker {
     id: number;
     name: string;
@@ -140,11 +168,25 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     page: number;
     limit: number;
 }
+type SectionField = {
+    key: keyof HealthRecord;
+    label: string;
+};
+export declare const SCREENING_SECTIONS: Array<{
+    id: string;
+    title: string;
+    fields: SectionField[];
+}>;
 export type MissingSectionFields = {
     sectionId: string;
     sectionTitle: string;
     fields: string[];
 };
+/** Missing field keys + labels for a single screening section (A, BP, B–G). */
+export declare function getMissingFieldsForSection(sectionId: string, record: Partial<HealthRecord>): Array<{
+    key: keyof HealthRecord;
+    label: string;
+}>;
 /** Per-section list of unanswered screening fields (human-readable labels). */
 export declare function getMissingScreeningFields(record: Partial<HealthRecord>): MissingSectionFields[];
 /**
@@ -153,4 +195,5 @@ export declare function getMissingScreeningFields(record: Partial<HealthRecord>)
  */
 export declare function countCompletedDomains(record: Partial<HealthRecord>): number;
 export declare function isRecordComplete(record: Partial<HealthRecord>): boolean;
+export {};
 //# sourceMappingURL=types.d.ts.map

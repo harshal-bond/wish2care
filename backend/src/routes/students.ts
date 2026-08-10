@@ -57,20 +57,20 @@ studentsRoutes.get('/', async (c) => {
     }
 
     const results = await query;
-    
-    // Map to response format
+
+    // Slim list payload: identity + status + updatedAt only (full record on GET /:id)
     const mappedResults = results.map(row => {
       const record = row.healthRecord;
       const completedDomains = record ? countCompletedDomains(record) : 0;
-      
+
       return {
         ...row.student,
         school: row.school,
-        healthRecord: record,
+        healthRecord: record ? { updatedAt: record.updatedAt } : null,
         _status: {
           completedDomains,
-          isComplete: record ? isRecordComplete(record) : false
-        }
+          isComplete: record ? isRecordComplete(record) : false,
+        },
       };
     });
 

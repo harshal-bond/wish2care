@@ -43,10 +43,10 @@ export function StudentsPage() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['students'],
     queryFn: () => fetchApi('/students'),
-    staleTime: 15_000,
+    staleTime: 60_000,
     placeholderData: keepPreviousData,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   const deferredSearch = useDeferredValue(useDebouncedValue(searchTerm, 150));
