@@ -9,7 +9,6 @@ import {
   EXCEL_TEMPLATE_LAST_ROW,
   EXCEL_SHEET_NAME,
 } from '@wish2care/shared';
-import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 
@@ -25,6 +24,9 @@ function genderLabel(g: string | null | undefined): string {
 
 exportRoutes.post('/', async (c) => {
   try {
+    // Lazy-load ExcelJS — keep it off the cold-start path for other routes
+    const ExcelJS = (await import('exceljs')).default;
+
     const body = await c.req.json();
     const { schoolId, studentIds } = body;
 
@@ -85,7 +87,7 @@ exportRoutes.post('/', async (c) => {
 
       const mapVal = (col: string, val: unknown) => {
         if (val !== null && val !== undefined && val !== '') {
-          excelRow.getCell(col).value = val as ExcelJS.CellValue;
+          excelRow.getCell(col).value = val as string | number | boolean | Date | null;
         }
       };
 

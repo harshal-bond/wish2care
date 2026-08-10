@@ -4,7 +4,7 @@ import { staff, staffAssessments, schools } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { staffSchema, staffAssessmentPartialSchema } from '@wish2care/shared';
 import { eq, ilike, or, and, count } from 'drizzle-orm';
-import { generateStudentCode } from '../lib/parseStudentExcel.js';
+import { generateStudentCode } from '../lib/studentCode.js';
 export const staffRoutes = new Hono();
 staffRoutes.use('/*', authMiddleware);
 staffRoutes.get('/', async (c) => {

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { healthRecords } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { healthRecordPartialSchema, isRecordComplete } from '@wish2care/shared';
+import { healthRecordPartialSchema } from '@wish2care/shared';
 import { eq } from 'drizzle-orm';
 
 export const healthRecordsRoutes = new Hono();
@@ -35,16 +35,22 @@ healthRecordsRoutes.put('/:studentId', async (c) => {
     }
 
     const user = c.get('user');
-    const [existingRecord] = await db
-      .select()
-      .from(healthRecords)
-      .where(eq(healthRecords.studentId, studentId));
 
-    if (existingRecord && user.role === 'fieldworker' && isRecordComplete(existingRecord)) {
-      return c.json({
-        success: false,
-        error: 'Forbidden: Record is already submitted and cannot be edited by a fieldworker.',
-      }, 403);
+    // Fieldworkers: lock after explicit submit (assessmentComplete) — one cheap column read
+    if (user.role === 'fieldworker') {
+      const [existing] = await db
+        .select({
+          assessmentComplete: healthRecords.assessmentComplete,
+        })
+        .from(healthRecords)
+        .where(eq(healthRecords.studentId, studentId));
+
+      if (existing?.assessmentComplete === true) {
+        return c.json({
+          success: false,
+          error: 'Forbidden: Record is already submitted and cannot be edited by a fieldworker.',
+        }, 403);
+      }
     }
 
     const { studentId: _ignored, ...fields } = result.data;

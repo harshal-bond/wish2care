@@ -21,7 +21,7 @@ export function DashboardPage() {
     queryKey: ['students'],
     queryFn: () => fetchApi('/students'),
     staleTime: 60_000,
-    refetchOnMount: true,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 

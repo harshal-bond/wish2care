@@ -1,12 +1,13 @@
-import ExcelJS from 'exceljs';
 import { studentSchoolUploadRowSchema } from '@wish2care/shared';
+import { generateStudentCode, schoolInitials } from './studentCode.js';
+export { generateStudentCode, schoolInitials };
 function cellText(value) {
     if (value == null)
         return '';
-    if (typeof value === 'object' && 'text' in value && value.text) {
+    if (typeof value === 'object' && value !== null && 'text' in value && value.text) {
         return String(value.text).trim();
     }
-    if (typeof value === 'object' && 'result' in value && value.result != null) {
+    if (typeof value === 'object' && value !== null && 'result' in value && value.result != null) {
         return String(value.result).trim();
     }
     return String(value).trim();
@@ -136,6 +137,8 @@ function toStudentRow(rowNumber, raw) {
     return { rowNumber, data: parsed.data };
 }
 export async function parseStudentExcel(buffer) {
+    // Lazy-load ExcelJS so cold starts of /students etc. don't pay for it
+    const ExcelJS = (await import('exceljs')).default;
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer);
     const sheet = workbook.worksheets[0];
@@ -177,27 +180,5 @@ export async function parseStudentExcel(buffer) {
         throw new Error('No student rows found. Use columns: Student Code, Name, Age, Gender');
     }
     return { rows, errors };
-}
-/**
- * Derives a short prefix from a school name by taking the first letter
- * of each significant word (ignoring common words like "and", "of", "the").
- * e.g. "PES Modern High School" → "PMHS", "Government Boys School" → "GBS"
- */
-export function schoolInitials(name) {
-    const stopWords = new Set(['and', 'of', 'the', 'a', 'an', 'for', 'to', 'in', 'at', '&']);
-    return name
-        .split(/\s+/)
-        .filter(w => w.length > 0 && !stopWords.has(w.toLowerCase()))
-        .map(w => w[0].toUpperCase())
-        .join('');
-}
-/**
- * Generates a student code in the format: <SchoolInitials><SchoolId>-<Seq>
- * e.g. "PES Modern" (ID 3) + sequence 7  → "PM3-007"
- */
-export function generateStudentCode(schoolName, schoolId, seq) {
-    const prefix = schoolInitials(schoolName);
-    const paddedSeq = String(seq).padStart(3, '0');
-    return `${prefix}${schoolId}-${paddedSeq}`;
 }
 //# sourceMappingURL=parseStudentExcel.js.map

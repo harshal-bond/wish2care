@@ -4,7 +4,6 @@ import { students, healthRecords, schools } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { eq, inArray } from 'drizzle-orm';
 import { EXCEL_COLUMN_MAP, EXCEL_DATA_START_ROW, EXCEL_TEMPLATE_LAST_ROW, EXCEL_SHEET_NAME, } from '@wish2care/shared';
-import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 export const exportRoutes = new Hono();
@@ -18,6 +17,8 @@ function genderLabel(g) {
 }
 exportRoutes.post('/', async (c) => {
     try {
+        // Lazy-load ExcelJS — keep it off the cold-start path for other routes
+        const ExcelJS = (await import('exceljs')).default;
         const body = await c.req.json();
         const { schoolId, studentIds } = body;
         let query = db
