@@ -3,28 +3,43 @@ import { db } from '../db/index.js';
 import { students, healthRecords, schools } from '../db/schema.js';
 import { authMiddleware, requireWorker } from '../middleware/auth.js';
 import { eq, inArray } from 'drizzle-orm';
-import { EXCEL_COLUMN_MAP, EXCEL_DATA_START_ROW, EXCEL_TEMPLATE_LAST_ROW } from '@wish2care/shared';
-import ExcelJS from 'exceljs';
+import {
+  EXCEL_COLUMN_MAP,
+  EXCEL_DATA_START_ROW,
+  EXCEL_TEMPLATE_LAST_ROW,
+  EXCEL_SHEET_NAME,
+} from '@wish2care/shared';
 import path from 'path';
+import fs from 'fs';
 
 export const exportRoutes = new Hono();
 
 exportRoutes.use('/*', authMiddleware);
 exportRoutes.use('/*', requireWorker);
 
+function genderLabel(g: string | null | undefined): string {
+  if (g === 'M') return 'Male';
+  if (g === 'F') return 'Female';
+  return g || '';
+}
+
 exportRoutes.post('/', async (c) => {
   try {
+    // Lazy-load ExcelJS — keep it off the cold-start path for other routes
+    const ExcelJS = (await import('exceljs')).default;
+
     const body = await c.req.json();
     const { schoolId, studentIds } = body;
 
-    let query = db.select({
-      student: students,
-      healthRecord: healthRecords,
-      school: schools
-    })
-    .from(students)
-    .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
-    .leftJoin(schools, eq(students.schoolId, schools.id));
+    let query = db
+      .select({
+        student: students,
+        healthRecord: healthRecords,
+        school: schools,
+      })
+      .from(students)
+      .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+      .leftJoin(schools, eq(students.schoolId, schools.id));
 
     if (studentIds && studentIds.length > 0) {
       query.where(inArray(students.id, studentIds));
@@ -38,106 +53,126 @@ exportRoutes.post('/', async (c) => {
       return c.json({ success: false, error: 'No data found to export' }, 404);
     }
 
-    // Load Excel Template
-    const templatePath = path.join(process.cwd(), '..', 'Wish2Care_SAFE_Wellness_Score_Tool.xlsx');
+    const candidates = [
+      path.join(process.cwd(), '..', 'Wish2Care_SAFE_Health_Intelligence_System.xlsx'),
+      path.join(process.cwd(), 'Wish2Care_SAFE_Health_Intelligence_System.xlsx'),
+      path.join(process.cwd(), '..', 'Wish2Care_SAFE_Wellness_Score_Tool.xlsx'),
+    ];
+    const templatePath = candidates.find((p) => fs.existsSync(p));
+    if (!templatePath) {
+      throw new Error(
+        'Excel template not found. Place Wish2Care_SAFE_Health_Intelligence_System.xlsx in the project root.'
+      );
+    }
+
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(templatePath);
 
-    const sheet = workbook.getWorksheet('Field Data Entry');
+    const sheet = workbook.getWorksheet(EXCEL_SHEET_NAME);
     if (!sheet) {
-      throw new Error('Template sheet "Field Data Entry" not found');
+      throw new Error(`Template sheet "${EXCEL_SHEET_NAME}" not found`);
     }
 
-    // Check if we need to extend the rows
     const numStudents = data.length;
-    const availableRows = (EXCEL_TEMPLATE_LAST_ROW - EXCEL_DATA_START_ROW) + 1; // 60
-    
+    const availableRows = EXCEL_TEMPLATE_LAST_ROW - EXCEL_DATA_START_ROW + 1;
+
     if (numStudents > availableRows) {
       const rowsToAdd = numStudents - availableRows;
-      const copyFromRowNumber = EXCEL_TEMPLATE_LAST_ROW;
-      
-      sheet.duplicateRow(copyFromRowNumber, rowsToAdd, true);
+      sheet.duplicateRow(EXCEL_TEMPLATE_LAST_ROW, rowsToAdd, true);
     }
 
-    // Fill data
     data.forEach((row, index) => {
       const { student, healthRecord, school } = row;
       const rowIndex = EXCEL_DATA_START_ROW + index;
-
-      // Ensure row exists (it should, due to duplication above)
       const excelRow = sheet.getRow(rowIndex);
 
-      // Map values
-      const mapVal = (col: string, val: any) => {
-        if (val !== null && val !== undefined) {
-          excelRow.getCell(col).value = val;
+      const mapVal = (col: string, val: unknown) => {
+        if (val !== null && val !== undefined && val !== '') {
+          excelRow.getCell(col).value = val as string | number | boolean | Date | null;
         }
       };
 
-      // Student info
       mapVal(EXCEL_COLUMN_MAP.studentCode, student.studentCode);
       mapVal(EXCEL_COLUMN_MAP.school, school?.name);
-      
+      mapVal(EXCEL_COLUMN_MAP.studentName, student.name);
+      mapVal(EXCEL_COLUMN_MAP.age, student.age);
+      mapVal(EXCEL_COLUMN_MAP.gender, genderLabel(student.gender));
+      mapVal(EXCEL_COLUMN_MAP.dateOfBirth, student.dateOfBirth);
+      mapVal(EXCEL_COLUMN_MAP.parentName, student.nomineeName);
+      mapVal(EXCEL_COLUMN_MAP.parentMobile, student.fatherMobileNo || student.mobileNo);
+      mapVal(EXCEL_COLUMN_MAP.emergencyContact, student.mobileNo);
+      mapVal(EXCEL_COLUMN_MAP.bloodGroup, student.bloodGroup);
+
       if (healthRecord) {
         mapVal(EXCEL_COLUMN_MAP.date, healthRecord.date);
-      }
-      
-      mapVal(EXCEL_COLUMN_MAP.age, student.age);
-      mapVal(EXCEL_COLUMN_MAP.gender, student.gender);
 
-      // Health record fields
-      if (healthRecord) {
         mapVal(EXCEL_COLUMN_MAP.height, healthRecord.height);
         mapVal(EXCEL_COLUMN_MAP.weight, healthRecord.weight);
-        mapVal(EXCEL_COLUMN_MAP.undernutritionClass, healthRecord.undernutritionClass);
-        mapVal(EXCEL_COLUMN_MAP.overweightClass, healthRecord.overweightClass);
-        mapVal(EXCEL_COLUMN_MAP.hb, healthRecord.hb);
-        mapVal(EXCEL_COLUMN_MAP.anaemiaClass, healthRecord.anaemiaClass);
-        mapVal(EXCEL_COLUMN_MAP.systolic, healthRecord.systolic);
-        mapVal(EXCEL_COLUMN_MAP.diastolic, healthRecord.diastolic);
-        mapVal(EXCEL_COLUMN_MAP.bpClass, healthRecord.bpClass);
+        mapVal(EXCEL_COLUMN_MAP.muac, healthRecord.muac);
         mapVal(EXCEL_COLUMN_MAP.waistCircumference, healthRecord.waistCircumference);
-        mapVal(EXCEL_COLUMN_MAP.familyHxCount, healthRecord.familyHxCount);
-        mapVal(EXCEL_COLUMN_MAP.metabolicRiskClass, healthRecord.metabolicRiskClass);
-        mapVal(EXCEL_COLUMN_MAP.rightEyeAcuity, healthRecord.rightEyeAcuity);
-        mapVal(EXCEL_COLUMN_MAP.leftEyeAcuity, healthRecord.leftEyeAcuity);
-        mapVal(EXCEL_COLUMN_MAP.decayedTeethCount, healthRecord.decayedTeethCount);
-        mapVal(EXCEL_COLUMN_MAP.wheezeSymptom, healthRecord.wheezeSymptom);
-        mapVal(EXCEL_COLUMN_MAP.measuredPefr, healthRecord.measuredPefr);
-        mapVal(EXCEL_COLUMN_MAP.predictedPefr, healthRecord.predictedPefr);
-        mapVal(EXCEL_COLUMN_MAP.tbCough, healthRecord.tbCough);
-        mapVal(EXCEL_COLUMN_MAP.tbFever, healthRecord.tbFever);
-        mapVal(EXCEL_COLUMN_MAP.tbNightSweats, healthRecord.tbNightSweats);
-        mapVal(EXCEL_COLUMN_MAP.tbWeightLoss, healthRecord.tbWeightLoss);
-        mapVal(EXCEL_COLUMN_MAP.mentalWellbeingResult, healthRecord.mentalWellbeingResult);
+
+        mapVal(EXCEL_COLUMN_MAP.breakfast, healthRecord.breakfast);
+        mapVal(EXCEL_COLUMN_MAP.fruitIntake, healthRecord.fruitIntake);
+        mapVal(EXCEL_COLUMN_MAP.vegetables, healthRecord.vegetables);
+        mapVal(EXCEL_COLUMN_MAP.proteinIntake, healthRecord.proteinIntake);
+        mapVal(EXCEL_COLUMN_MAP.junkFood, healthRecord.junkFood);
+        mapVal(EXCEL_COLUMN_MAP.sugaryDrinks, healthRecord.sugaryDrinks);
+        mapVal(EXCEL_COLUMN_MAP.waterIntake, healthRecord.waterIntake);
+
+        mapVal(EXCEL_COLUMN_MAP.physicalActivity, healthRecord.physicalActivity);
+        mapVal(EXCEL_COLUMN_MAP.screenTime, healthRecord.screenTime);
+        mapVal(EXCEL_COLUMN_MAP.outdoorPlay, healthRecord.outdoorPlay);
+        mapVal(EXCEL_COLUMN_MAP.sleepHours, healthRecord.sleepHours);
+        mapVal(EXCEL_COLUMN_MAP.smoking, healthRecord.smoking);
+        mapVal(EXCEL_COLUMN_MAP.alcohol, healthRecord.alcohol);
+
+        mapVal(EXCEL_COLUMN_MAP.chronicDisease, healthRecord.chronicDisease);
+        mapVal(EXCEL_COLUMN_MAP.frequentFever, healthRecord.frequentFever);
+        mapVal(EXCEL_COLUMN_MAP.weightLoss, healthRecord.weightLoss);
+        mapVal(EXCEL_COLUMN_MAP.poorAppetite, healthRecord.poorAppetite);
+        mapVal(EXCEL_COLUMN_MAP.repeatedInfection, healthRecord.repeatedInfection);
+        mapVal(EXCEL_COLUMN_MAP.hospitalisation, healthRecord.hospitalisation);
+        mapVal(EXCEL_COLUMN_MAP.medication, healthRecord.medication);
+
+        mapVal(EXCEL_COLUMN_MAP.stress, healthRecord.stress);
+        mapVal(EXCEL_COLUMN_MAP.mood, healthRecord.mood);
+        mapVal(EXCEL_COLUMN_MAP.concentration, healthRecord.concentration);
+        mapVal(EXCEL_COLUMN_MAP.bullying, healthRecord.bullying);
+
+        mapVal(EXCEL_COLUMN_MAP.pallor, healthRecord.pallor);
+        mapVal(EXCEL_COLUMN_MAP.dentalCaries, healthRecord.dentalCaries);
+        mapVal(EXCEL_COLUMN_MAP.poorOralHygiene, healthRecord.poorOralHygiene);
+        mapVal(EXCEL_COLUMN_MAP.visionProblem, healthRecord.visionProblem);
+        mapVal(EXCEL_COLUMN_MAP.hairChanges, healthRecord.hairChanges);
+        mapVal(EXCEL_COLUMN_MAP.skinChanges, healthRecord.skinChanges);
+
+        mapVal(EXCEL_COLUMN_MAP.vaccinationComplete, healthRecord.vaccinationComplete);
+        mapVal(EXCEL_COLUMN_MAP.deworming, healthRecord.deworming);
+        mapVal(EXCEL_COLUMN_MAP.handHygiene, healthRecord.handHygiene);
+        mapVal(EXCEL_COLUMN_MAP.dentalCheckup, healthRecord.dentalCheckup);
+        mapVal(EXCEL_COLUMN_MAP.visionScreening, healthRecord.visionScreening);
       }
-      
+
       excelRow.commit();
     });
 
-    // Clear out remaining template rows if there are fewer students than 60
     if (numStudents < availableRows) {
       for (let i = numStudents; i < availableRows; i++) {
         const rowIndex = EXCEL_DATA_START_ROW + i;
         const excelRow = sheet.getRow(rowIndex);
-        
-        // Clear only the input cells (blue cells), not the formula cells
-        Object.values(EXCEL_COLUMN_MAP).forEach(col => {
-           excelRow.getCell(col).value = null;
+        Object.values(EXCEL_COLUMN_MAP).forEach((col) => {
+          excelRow.getCell(col).value = null;
         });
-        
         excelRow.commit();
       }
     }
 
-    // Generate output
     const buffer = await workbook.xlsx.writeBuffer();
-    
+
     return c.body(buffer, 200, {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': 'attachment; filename="Wish2Care_Export.xlsx"',
     });
-
   } catch (err: any) {
     console.error('Export error:', err);
     return c.json({ success: false, error: err.message }, 500);

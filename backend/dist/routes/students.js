@@ -3,22 +3,14 @@ import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
 import { authMiddleware, requireAdmin, requireWorker, requireOwnStudentId } from '../middleware/auth.js';
 import { studentSchema, studentMentalHealthSchema, setStudentPhoneSchema, isRecordComplete, countCompletedDomains, } from '@wish2care/shared';
-import { eq, like, or, and, desc, count } from 'drizzle-orm';
-import { generateStudentCode } from '../lib/parseStudentExcel.js';
+import { eq, ilike, or, and, desc, count } from 'drizzle-orm';
+import { generateStudentCode } from '../lib/studentCode.js';
 export const studentsRoutes = new Hono();
 studentsRoutes.use('/*', authMiddleware);
 studentsRoutes.get('/', requireWorker, async (c) => {
     const user = c.get('user');
     const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
-    let baseQuery = db.select({
-        student: students,
-        healthRecord: healthRecords,
-        school: schools
-    })
-        .from(students)
-        .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
-        .leftJoin(schools, eq(students.schoolId, schools.id));
     const conditions = [];
     // Role based filtering
     if (user.role === 'fieldworker' && user.assignedSchoolId) {
@@ -30,25 +22,141 @@ studentsRoutes.get('/', requireWorker, async (c) => {
     // Search
     if (search) {
         const searchPattern = `%${search}%`;
-        conditions.push(or(like(students.name, searchPattern), like(students.studentCode, searchPattern)));
-    }
-    if (conditions.length > 0) {
-        baseQuery.where(and(...conditions));
+        conditions.push(or(ilike(students.name, searchPattern), ilike(students.studentCode, searchPattern)));
     }
     try {
-        const results = await baseQuery;
-        // Map to response format
-        const mappedResults = results.map(row => {
-            const record = row.healthRecord;
-            const completedDomains = record ? countCompletedDomains(record) : 0;
+        const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+        // Select only screening fields needed for domain counts — not the full wide row
+        let query = db
+            .select({
+            student: students,
+            school: schools,
+            hrId: healthRecords.id,
+            updatedAt: healthRecords.updatedAt,
+            assessmentComplete: healthRecords.assessmentComplete,
+            height: healthRecords.height,
+            weight: healthRecords.weight,
+            muac: healthRecords.muac,
+            waistCircumference: healthRecords.waistCircumference,
+            systolic: healthRecords.systolic,
+            diastolic: healthRecords.diastolic,
+            bpClass: healthRecords.bpClass,
+            randomBloodSugar: healthRecords.randomBloodSugar,
+            breakfast: healthRecords.breakfast,
+            fruitIntake: healthRecords.fruitIntake,
+            vegetables: healthRecords.vegetables,
+            proteinIntake: healthRecords.proteinIntake,
+            junkFood: healthRecords.junkFood,
+            sugaryDrinks: healthRecords.sugaryDrinks,
+            waterIntake: healthRecords.waterIntake,
+            physicalActivity: healthRecords.physicalActivity,
+            screenTime: healthRecords.screenTime,
+            outdoorPlay: healthRecords.outdoorPlay,
+            sleepHours: healthRecords.sleepHours,
+            smoking: healthRecords.smoking,
+            alcohol: healthRecords.alcohol,
+            chronicDisease: healthRecords.chronicDisease,
+            frequentFever: healthRecords.frequentFever,
+            weightLoss: healthRecords.weightLoss,
+            poorAppetite: healthRecords.poorAppetite,
+            repeatedInfection: healthRecords.repeatedInfection,
+            hospitalisation: healthRecords.hospitalisation,
+            medication: healthRecords.medication,
+            stress: healthRecords.stress,
+            mood: healthRecords.mood,
+            concentration: healthRecords.concentration,
+            bullying: healthRecords.bullying,
+            pallor: healthRecords.pallor,
+            dentalCaries: healthRecords.dentalCaries,
+            poorOralHygiene: healthRecords.poorOralHygiene,
+            visionProblem: healthRecords.visionProblem,
+            hairChanges: healthRecords.hairChanges,
+            skinChanges: healthRecords.skinChanges,
+            clubbing: healthRecords.clubbing,
+            vaccinationComplete: healthRecords.vaccinationComplete,
+            deworming: healthRecords.deworming,
+            handHygiene: healthRecords.handHygiene,
+            dentalCheckup: healthRecords.dentalCheckup,
+            visionScreening: healthRecords.visionScreening,
+        })
+            .from(students)
+            .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+            .leftJoin(schools, eq(students.schoolId, schools.id))
+            .where(whereClause)
+            .orderBy(students.name)
+            .$dynamic();
+        // Cap only when searching; full list is needed for accurate dashboard counts
+        if (search) {
+            query = query.limit(200);
+        }
+        const results = await query;
+        // Slim list payload: identity + status + updatedAt only (full record on GET /:id)
+        const mappedResults = results.map((row) => {
+            if (row.hrId == null) {
+                return {
+                    ...row.student,
+                    school: row.school,
+                    healthRecord: null,
+                    _status: { completedDomains: 0, isComplete: false },
+                };
+            }
+            const record = {
+                assessmentComplete: row.assessmentComplete === true,
+                height: row.height,
+                weight: row.weight,
+                muac: row.muac,
+                waistCircumference: row.waistCircumference,
+                systolic: row.systolic,
+                diastolic: row.diastolic,
+                bpClass: row.bpClass,
+                randomBloodSugar: row.randomBloodSugar,
+                breakfast: row.breakfast,
+                fruitIntake: row.fruitIntake,
+                vegetables: row.vegetables,
+                proteinIntake: row.proteinIntake,
+                junkFood: row.junkFood,
+                sugaryDrinks: row.sugaryDrinks,
+                waterIntake: row.waterIntake,
+                physicalActivity: row.physicalActivity,
+                screenTime: row.screenTime,
+                outdoorPlay: row.outdoorPlay,
+                sleepHours: row.sleepHours,
+                smoking: row.smoking,
+                alcohol: row.alcohol,
+                chronicDisease: row.chronicDisease,
+                frequentFever: row.frequentFever,
+                weightLoss: row.weightLoss,
+                poorAppetite: row.poorAppetite,
+                repeatedInfection: row.repeatedInfection,
+                hospitalisation: row.hospitalisation,
+                medication: row.medication,
+                stress: row.stress,
+                mood: row.mood,
+                concentration: row.concentration,
+                bullying: row.bullying,
+                pallor: row.pallor,
+                dentalCaries: row.dentalCaries,
+                poorOralHygiene: row.poorOralHygiene,
+                visionProblem: row.visionProblem,
+                hairChanges: row.hairChanges,
+                skinChanges: row.skinChanges,
+                clubbing: row.clubbing,
+                vaccinationComplete: row.vaccinationComplete,
+                deworming: row.deworming,
+                handHygiene: row.handHygiene,
+                dentalCheckup: row.dentalCheckup,
+                visionScreening: row.visionScreening,
+            };
+            const completedDomains = countCompletedDomains(record);
+            const isComplete = isRecordComplete(record);
             return {
                 ...row.student,
                 school: row.school,
-                healthRecord: record,
+                healthRecord: { updatedAt: row.updatedAt },
                 _status: {
                     completedDomains,
-                    isComplete: record ? isRecordComplete(record) : false
-                }
+                    isComplete,
+                },
             };
         });
         return c.json({ success: true, data: mappedResults });

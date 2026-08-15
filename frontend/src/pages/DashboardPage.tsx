@@ -1,20 +1,32 @@
-import { useState } from 'react';
+import { useState, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent, Input } from '../components/ui';
-import { Users, CheckCircle, Clock, Search, ArrowRight, UserCheck, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Users, CheckCircle, Clock, Search, ArrowRight, UserCheck, Calendar, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
+import { AddStudentModal } from '../components/forms/AddStudentModal';
+import { Button } from '../components/ui';
 
 export function DashboardPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const { data, isLoading } = useQuery({
     queryKey: ['students'],
-    queryFn: () => fetchApi('/students')
+    queryFn: () => fetchApi('/students'),
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
+
+  // Must stay above any early return (React hooks order)
+  const deferredSearch = useDeferredValue(search);
 
   if (isLoading) {
     return (
@@ -25,14 +37,16 @@ export function DashboardPage() {
   }
 
   const students = data?.data || [];
-  const completed = students.filter((s: any) => s._status.isComplete).length;
-  const pending = students.length - completed;
+  const completed = students.filter((s: any) => s._status?.isComplete).length;
+  const inProgress = students.filter(
+    (s: any) => !s._status?.isComplete && (s._status?.completedDomains ?? 0) > 0
+  ).length;
+  const pending = students.length - completed - inProgress;
   const progress = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
 
-  // Filter students for quick search
   const filteredStudents = students.filter((student: any) =>
-    student.name.toLowerCase().includes(search.toLowerCase()) ||
-    student.studentCode.toLowerCase().includes(search.toLowerCase())
+    student.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+    student.studentCode.toLowerCase().includes(deferredSearch.toLowerCase())
   ).slice(0, 4);
 
   // Greet message based on local time
@@ -88,58 +102,90 @@ export function DashboardPage() {
                   </Link>
                 ))
               ) : (
-                <div className="px-4 py-3 text-sm text-gray-500 text-center">No students found.</div>
+                <div className="p-3 text-center bg-gray-50/50">
+                  <p className="text-sm text-gray-500 mb-2">No students found.</p>
+                  <Button 
+                    onClick={() => setShowAddModal(true)} 
+                    variant="outline"
+                    className="w-full text-xs font-semibold h-8 rounded-lg shadow-sm bg-white hover:bg-gray-50 text-gray-700"
+                  >
+                    <UserPlus className="h-3 w-3 mr-1.5" />
+                    Add "{search}" Manually
+                  </Button>
+                </div>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Main Stats Cards */}
-      <div className="grid gap-6 sm:grid-cols-3">
-        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Total Students</CardTitle>
-            <div className="p-2 bg-gray-50 rounded-xl">
-              <Users className="h-4 w-4 text-gray-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight text-gray-900">{students.length}</div>
-            <p className="text-xs text-gray-400 mt-1">Screening master list</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Completed</CardTitle>
-            <div className="p-2 bg-emerald-50 rounded-xl">
-              <CheckCircle className="h-4 w-4 text-emerald-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight text-emerald-600">{completed}</div>
-            <div className="flex items-center gap-2 mt-2">
-              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full" style={{ width: `${progress}%` }} />
+      {/* Main Stats Cards — click a status to open that filtered student list */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Link to="/students" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-gray-300 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Total Students</CardTitle>
+              <div className="p-2 bg-gray-50 rounded-xl">
+                <Users className="h-4 w-4 text-gray-600" />
               </div>
-              <span className="text-xs font-semibold text-gray-700 shrink-0">{progress}%</span>
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-gray-900">{students.length}</div>
+              <p className="text-xs text-gray-400 mt-1">View all students</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Pending Screenings</CardTitle>
-            <div className="p-2 bg-orange-50 rounded-xl">
-              <Clock className="h-4 w-4 text-orange-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tracking-tight text-orange-500">{pending}</div>
-            <p className="text-xs text-gray-400 mt-1">Awaiting data entry</p>
-          </CardContent>
-        </Card>
+        <Link to="/students?status=complete" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-emerald-200 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Fully Complete</CardTitle>
+              <div className="p-2 bg-emerald-50 rounded-xl">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-emerald-600">{completed}</div>
+              <p className="text-xs text-gray-400 mt-1">All 8 screening sections done</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full" style={{ width: `${progress}%` }} />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 shrink-0">{progress}%</span>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link to="/students?status=in_progress" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-amber-200 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">In Progress</CardTitle>
+              <div className="p-2 bg-amber-50 rounded-xl">
+                <UserCheck className="h-4 w-4 text-amber-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-amber-600">{inProgress}</div>
+              <p className="text-xs text-gray-400 mt-1">View started assessments</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link to="/students?status=not_started" className="block group">
+          <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden h-full transition-all duration-200 group-hover:border-orange-200 group-hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-gray-400">Not Started</CardTitle>
+              <div className="p-2 bg-orange-50 rounded-xl">
+                <Clock className="h-4 w-4 text-orange-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold tracking-tight text-orange-500">{pending}</div>
+              <p className="text-xs text-gray-400 mt-1">View awaiting data entry</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
@@ -169,7 +215,7 @@ export function DashboardPage() {
 
                 <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                   <span className="text-xs text-gray-500 font-medium">
-                    {lastEditedStudent._status.isComplete ? 'Complete' : `${lastEditedStudent._status.completedDomains}/8 Domains Filled`}
+                    {lastEditedStudent._status.isComplete ? 'Complete' : `${lastEditedStudent._status.completedDomains}/8 Sections Filled`}
                   </span>
                   <Link 
                     to={`/students/${lastEditedStudent.id}`}
@@ -220,7 +266,7 @@ export function DashboardPage() {
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
-                        {student._status.completedDomains}/8 Domains
+                        {student._status.completedDomains}/8 Sections
                       </span>
                     )}
                     <ArrowRight className="h-4 w-4 text-gray-400" />
@@ -237,6 +283,21 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <AddStudentModal 
+            isOpen={showAddModal} 
+            onClose={() => setShowAddModal(false)}
+            initialName={search}
+            user={user}
+            onSuccess={(newId) => {
+              queryClient.invalidateQueries({ queryKey: ['students'] });
+              navigate(`/students/${newId}`);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

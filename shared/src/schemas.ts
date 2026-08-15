@@ -1,32 +1,56 @@
 import { z } from 'zod';
 import {
-  CLASSIFICATION,
   GENDER_OPTIONS,
   YES_NO,
-  MENTAL_WELLBEING_OPTIONS,
+  YES_PARTIAL_NO,
   ROLES,
   VALIDATION_RANGES,
+  BREAKFAST_OPTIONS,
+  FRUIT_INTAKE_OPTIONS,
+  VEGETABLES_OPTIONS,
+  PROTEIN_INTAKE_OPTIONS,
+  JUNK_FOOD_OPTIONS,
+  SUGARY_DRINKS_OPTIONS,
+  WATER_INTAKE_OPTIONS,
+  PHYSICAL_ACTIVITY_OPTIONS,
+  SCREEN_TIME_OPTIONS,
+  OUTDOOR_PLAY_OPTIONS,
+  SLEEP_HOURS_OPTIONS,
+  SMOKING_OPTIONS,
+  ALCOHOL_OPTIONS,
+  STRESS_OPTIONS,
+  MOOD_OPTIONS,
+  CONCENTRATION_OPTIONS,
+  HAND_HYGIENE_OPTIONS,
+  BP_CLASS_OPTIONS,
 } from './constants.js';
 
-// ── Helper: preprocess empty string "" or undefined to null ───────────
-const preprocessEmptyToNull = (schema: z.ZodTypeAny) =>
-  z.preprocess((val) => {
-    if (val === '' || val === undefined || val === null || (typeof val === 'number' && Number.isNaN(val))) {
-      return null;
-    }
-    return val;
-  }, schema);
+export const optionalNumber = () =>
+  z.union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform((val): number | null => {
+      if (val === '' || val === null || val === undefined) return null;
+      const num = Number(val);
+      if (Number.isNaN(num)) return null;
+      return num;
+    });
 
-export const optionalNumber = () => preprocessEmptyToNull(z.coerce.number().nullable().optional());
-export const optionalString = () => preprocessEmptyToNull(z.string().nullable().optional());
+export const optionalString = () =>
+  z.union([z.string(), z.null(), z.undefined()])
+    .transform((val): string | null => (val === '' || val == null ? null : val));
 
-// ── Classification enum ────────────────────────────────────────────────
-const classificationEnum = preprocessEmptyToNull(
-  z.enum([CLASSIFICATION.NORMAL, CLASSIFICATION.CAUTION, CLASSIFICATION.HIGH_RISK]).nullable().optional()
-);
+/** Optional enum that accepts '' / null / undefined → null */
+function optionalEnum<T extends readonly [string, ...string[]]>(options: T) {
+  type Val = T[number] | null;
+  return z
+    .union([z.enum(options), z.literal(''), z.null(), z.undefined()])
+    .transform((val): Val => (val === '' || val == null ? null : val));
+}
 
-const yesNoEnum = preprocessEmptyToNull(z.enum(YES_NO).nullable().optional());
+type YesNoVal = (typeof YES_NO)[number] | null;
+const yesNoEnum = optionalEnum(YES_NO) as z.ZodType<YesNoVal, z.ZodTypeDef, unknown>;
 
+type YesPartialNoVal = (typeof YES_PARTIAL_NO)[number] | null;
+const yesPartialNoEnum = optionalEnum(YES_PARTIAL_NO) as z.ZodType<YesPartialNoVal, z.ZodTypeDef, unknown>;
 
 // ── Auth schemas ───────────────────────────────────────────────────────
 export const loginSchema = z.object({
@@ -68,6 +92,17 @@ export const studentSchema = z.object({
   age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
   gender: z.enum(GENDER_OPTIONS),
   schoolId: z.coerce.number().int().positive(),
+  dateOfBirth: optionalString(),
+  bloodGroup: optionalString(),
+  email: optionalString(),
+  mobileNo: optionalString(),
+  fatherMobileNo: optionalString(),
+  nomineeName: optionalString(),
+  relationship: optionalString(),
+  courseName: optionalString(),
+  collegeStream: optionalString(),
+  localAddress: optionalString(),
+  area: optionalString(),
 });
 
 export const studentUploadRowSchema = z.object({
@@ -76,6 +111,36 @@ export const studentUploadRowSchema = z.object({
   school: z.string().min(1, 'School name is required'),
   age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
   gender: z.string().transform((v) => v.toUpperCase().charAt(0) as 'M' | 'F'),
+  dateOfBirth: optionalString(),
+  bloodGroup: optionalString(),
+  email: optionalString(),
+  mobileNo: optionalString(),
+  fatherMobileNo: optionalString(),
+  nomineeName: optionalString(),
+  relationship: optionalString(),
+  courseName: optionalString(),
+  collegeStream: optionalString(),
+  localAddress: optionalString(),
+  area: optionalString(),
+});
+
+// ── Staff schema (college employees as screenees) ──────────────────────
+export const staffSchema = z.object({
+  staffCode: z.string().optional(),
+  name: z.string().min(1, 'Staff name is required'),
+  age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
+  gender: z.enum(GENDER_OPTIONS),
+  schoolId: z.coerce.number().int().positive(),
+  designation: optionalString(),
+  department: optionalString(),
+  email: optionalString(),
+  mobileNo: optionalString(),
+});
+
+export const staffAssessmentPartialSchema = z.object({
+  staffId: z.coerce.number().int().positive().optional(),
+  assessmentComplete: z.boolean().optional(),
+  payload: z.record(z.any()).nullable().optional(),
 });
 
 /** Row schema for bulk upload tied to a specific school (school comes from URL, not the sheet). */
@@ -84,56 +149,97 @@ export const studentSchoolUploadRowSchema = z.object({
   name: z.string().min(1, 'Student name is required'),
   age: z.coerce.number().min(VALIDATION_RANGES.age.min).max(VALIDATION_RANGES.age.max),
   gender: z.string().transform((v) => v.toUpperCase().charAt(0) as 'M' | 'F'),
+  dateOfBirth: optionalString(),
+  bloodGroup: optionalString(),
+  email: optionalString(),
+  mobileNo: optionalString(),
+  fatherMobileNo: optionalString(),
+  nomineeName: optionalString(),
+  relationship: optionalString(),
+  courseName: optionalString(),
+  collegeStream: optionalString(),
+  localAddress: optionalString(),
+  area: optionalString(),
 });
 
 // ── Health record schema ───────────────────────────────────────────────
-// These are the 26 raw input fields from the Excel workbook
+// Input fields from STUDENT SCREENING (Sections A–G). Scores are computed, not stored.
 export const healthRecordSchema = z.object({
   studentId: z.coerce.number().int().positive(),
   date: z.string().optional().nullable(),
 
-  // Domain 1: Undernutrition
+  // Section A – Anthropometry
   height: optionalNumber(),
   weight: optionalNumber(),
-  undernutritionClass: classificationEnum.optional().nullable(),
+  muac: optionalNumber(),
+  waistCircumference: optionalNumber(),
 
-  // Domain 2: Overweight/Obesity
-  overweightClass: classificationEnum.optional().nullable(),
-
-  // Domain 3: Anaemia
-  hb: optionalNumber(),
-  anaemiaClass: classificationEnum.optional().nullable(),
-
-  // Domain 4: Blood Pressure
+  // Blood Pressure & Random Blood Sugar (below Section A)
   systolic: optionalNumber(),
   diastolic: optionalNumber(),
-  bpClass: classificationEnum.optional().nullable(),
+  bpClass: optionalEnum(BP_CLASS_OPTIONS),
+  randomBloodSugar: optionalNumber(),
 
-  // Domain 5: Metabolic Risk
-  waistCircumference: optionalNumber(),
-  familyHxCount: optionalNumber(),
-  metabolicRiskClass: classificationEnum.optional().nullable(),
+  // Section B – Diet
+  breakfast: optionalEnum(BREAKFAST_OPTIONS),
+  fruitIntake: optionalEnum(FRUIT_INTAKE_OPTIONS),
+  vegetables: optionalEnum(VEGETABLES_OPTIONS),
+  proteinIntake: optionalEnum(PROTEIN_INTAKE_OPTIONS),
+  junkFood: optionalEnum(JUNK_FOOD_OPTIONS),
+  sugaryDrinks: optionalEnum(SUGARY_DRINKS_OPTIONS),
+  waterIntake: optionalEnum(WATER_INTAKE_OPTIONS),
 
-  // Domain 6: Vision (classification auto-computed by Excel)
-  rightEyeAcuity: optionalNumber(),
-  leftEyeAcuity: optionalNumber(),
+  // Section C – Lifestyle
+  physicalActivity: optionalEnum(PHYSICAL_ACTIVITY_OPTIONS),
+  screenTime: optionalEnum(SCREEN_TIME_OPTIONS),
+  outdoorPlay: optionalEnum(OUTDOOR_PLAY_OPTIONS),
+  sleepHours: optionalEnum(SLEEP_HOURS_OPTIONS),
+  smoking: optionalEnum(SMOKING_OPTIONS),
+  alcohol: optionalEnum(ALCOHOL_OPTIONS),
 
-  // Domain 7: Oral Health (classification auto-computed by Excel)
-  decayedTeethCount: optionalNumber(),
+  // Section D – Medical History
+  chronicDisease: yesNoEnum.optional().nullable(),
+  frequentFever: yesNoEnum.optional().nullable(),
+  weightLoss: yesNoEnum.optional().nullable(),
+  poorAppetite: yesNoEnum.optional().nullable(),
+  repeatedInfection: yesNoEnum.optional().nullable(),
+  hospitalisation: yesNoEnum.optional().nullable(),
+  medication: yesNoEnum.optional().nullable(),
 
-  // Domain 8: Respiratory (classification auto-computed by Excel)
-  wheezeSymptom: yesNoEnum.optional().nullable(),
-  measuredPefr: optionalNumber(),
-  predictedPefr: optionalNumber(),
+  // Section E – Mental Wellness
+  stress: optionalEnum(STRESS_OPTIONS),
+  mood: optionalEnum(MOOD_OPTIONS),
+  concentration: optionalEnum(CONCENTRATION_OPTIONS),
+  bullying: yesNoEnum.optional().nullable(),
 
-  // TB Red-Flag Screen
-  tbCough: yesNoEnum.optional().nullable(),
-  tbFever: yesNoEnum.optional().nullable(),
-  tbNightSweats: yesNoEnum.optional().nullable(),
-  tbWeightLoss: yesNoEnum.optional().nullable(),
+  // Section F – Clinical Observation
+  pallor: yesNoEnum.optional().nullable(),
+  dentalCaries: yesNoEnum.optional().nullable(),
+  poorOralHygiene: yesNoEnum.optional().nullable(),
+  visionProblem: yesNoEnum.optional().nullable(),
+  hairChanges: yesNoEnum.optional().nullable(),
+  skinChanges: yesNoEnum.optional().nullable(),
+  clubbing: yesNoEnum.optional().nullable(),
 
-  // Mental Wellbeing Red-Flag
-  mentalWellbeingResult: preprocessEmptyToNull(z.enum(MENTAL_WELLBEING_OPTIONS).nullable().optional()),
+  // Section G – Preventive Health
+  vaccinationComplete: yesPartialNoEnum.optional().nullable(),
+  deworming: yesPartialNoEnum.optional().nullable(),
+  handHygiene: optionalEnum(HAND_HYGIENE_OPTIONS),
+  dentalCheckup: yesNoEnum.optional().nullable(),
+  visionScreening: yesNoEnum.optional().nullable(),
+
+  /** Remarks keyed by Yes/No field name — only used when that answer is Yes */
+  yesNoRemarks: z
+    .union([z.record(z.string(), z.string()), z.null(), z.undefined()])
+    .transform((val): Record<string, string> | null => {
+      if (val == null || typeof val !== 'object') return null;
+      return val;
+    }),
+
+  /** Explicitly marked complete (allows incomplete fields after user confirmation) */
+  assessmentComplete: z
+    .union([z.boolean(), z.null(), z.undefined()])
+    .transform((val): boolean => val === true),
 });
 
 // ── Partial health record for autosave ─────────────────────────────────
@@ -157,9 +263,9 @@ export const validationWarnings = z.object({
     (v) => !v || (v >= VALIDATION_RANGES.weight.min && v <= VALIDATION_RANGES.weight.max),
     { message: `Weight should be between ${VALIDATION_RANGES.weight.min}–${VALIDATION_RANGES.weight.max} kg` }
   ),
-  hb: optionalNumber().refine(
-    (v) => !v || (v >= VALIDATION_RANGES.hb.min && v <= VALIDATION_RANGES.hb.max),
-    { message: `Hb should be between ${VALIDATION_RANGES.hb.min}–${VALIDATION_RANGES.hb.max} g/dL` }
+  muac: optionalNumber().refine(
+    (v) => !v || (v >= VALIDATION_RANGES.muac.min && v <= VALIDATION_RANGES.muac.max),
+    { message: `MUAC should be between ${VALIDATION_RANGES.muac.min}–${VALIDATION_RANGES.muac.max} cm` }
   ),
 });
 

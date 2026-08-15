@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { loginSchema, registerWorkerSchema, requestOtpSchema, verifyOtpSchema, setStudentPhoneSchema, studentSchema, studentUploadRowSchema, studentSchoolUploadRowSchema, healthRecordSchema, healthRecordPartialSchema, exportRequestSchema, schoolSchema } from './schemas.js';
+import type { loginSchema, registerWorkerSchema, requestOtpSchema, verifyOtpSchema, setStudentPhoneSchema, studentSchema, studentUploadRowSchema, studentSchoolUploadRowSchema, healthRecordSchema, healthRecordPartialSchema, exportRequestSchema, schoolSchema, staffSchema, staffAssessmentPartialSchema } from './schemas.js';
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterWorkerInput = z.infer<typeof registerWorkerSchema>;
 export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
@@ -20,6 +20,8 @@ export type HealthRecordInput = z.infer<typeof healthRecordSchema>;
 export type HealthRecordPartial = z.infer<typeof healthRecordPartialSchema>;
 export type ExportRequest = z.infer<typeof exportRequestSchema>;
 export type SchoolInput = z.infer<typeof schoolSchema>;
+export type StaffInput = z.infer<typeof staffSchema>;
+export type StaffAssessmentPartial = z.infer<typeof staffAssessmentPartialSchema>;
 export interface School {
     id: number;
     name: string;
@@ -38,6 +40,17 @@ export interface Student {
     schoolId: number;
     school?: School;
     healthRecord?: HealthRecord | null;
+    dateOfBirth?: string | null;
+    bloodGroup?: string | null;
+    email?: string | null;
+    mobileNo?: string | null;
+    fatherMobileNo?: string | null;
+    nomineeName?: string | null;
+    relationship?: string | null;
+    courseName?: string | null;
+    collegeStream?: string | null;
+    localAddress?: string | null;
+    area?: string | null;
     createdAt: string | Date;
 }
 export interface HealthRecord {
@@ -46,27 +59,78 @@ export interface HealthRecord {
     date: string | null;
     height: number | null;
     weight: number | null;
-    undernutritionClass: string | null;
-    overweightClass: string | null;
-    hb: number | null;
-    anaemiaClass: string | null;
+    muac: number | null;
+    waistCircumference: number | null;
     systolic: number | null;
     diastolic: number | null;
     bpClass: string | null;
-    waistCircumference: number | null;
-    familyHxCount: number | null;
-    metabolicRiskClass: string | null;
-    rightEyeAcuity: number | null;
-    leftEyeAcuity: number | null;
-    decayedTeethCount: number | null;
-    wheezeSymptom: string | null;
-    measuredPefr: number | null;
-    predictedPefr: number | null;
-    tbCough: string | null;
-    tbFever: string | null;
-    tbNightSweats: string | null;
-    tbWeightLoss: string | null;
-    mentalWellbeingResult: string | null;
+    randomBloodSugar: number | null;
+    breakfast: string | null;
+    fruitIntake: string | null;
+    vegetables: string | null;
+    proteinIntake: string | null;
+    junkFood: string | null;
+    sugaryDrinks: string | null;
+    waterIntake: string | null;
+    physicalActivity: string | null;
+    screenTime: string | null;
+    outdoorPlay: string | null;
+    sleepHours: string | null;
+    smoking: string | null;
+    alcohol: string | null;
+    chronicDisease: string | null;
+    frequentFever: string | null;
+    weightLoss: string | null;
+    poorAppetite: string | null;
+    repeatedInfection: string | null;
+    hospitalisation: string | null;
+    medication: string | null;
+    stress: string | null;
+    mood: string | null;
+    concentration: string | null;
+    bullying: string | null;
+    pallor: string | null;
+    dentalCaries: string | null;
+    poorOralHygiene: string | null;
+    visionProblem: string | null;
+    hairChanges: string | null;
+    skinChanges: string | null;
+    clubbing: string | null;
+    vaccinationComplete: string | null;
+    deworming: string | null;
+    handHygiene: string | null;
+    dentalCheckup: string | null;
+    visionScreening: string | null;
+    /** Remarks for Yes answers on Yes/No fields */
+    yesNoRemarks: Record<string, string> | null;
+    /** Marked complete by the fieldworker (may still have blank fields) */
+    assessmentComplete: boolean;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+}
+export interface Staff {
+    id: number;
+    staffCode: string;
+    name: string;
+    age: number;
+    gender: 'M' | 'F';
+    designation?: string | null;
+    department?: string | null;
+    email?: string | null;
+    mobileNo?: string | null;
+    schoolId: number;
+    school?: School;
+    assessment?: StaffAssessment | null;
+    createdAt: string | Date;
+    _status?: {
+        isComplete: boolean;
+    };
+}
+export interface StaffAssessment {
+    id: number;
+    staffId: number;
+    assessmentComplete: boolean;
+    payload: Record<string, unknown> | null;
     createdAt: string | Date;
     updatedAt: string | Date;
 }
@@ -118,10 +182,32 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     page: number;
     limit: number;
 }
+type SectionField = {
+    key: keyof HealthRecord;
+    label: string;
+};
+export declare const SCREENING_SECTIONS: Array<{
+    id: string;
+    title: string;
+    fields: SectionField[];
+}>;
+export type MissingSectionFields = {
+    sectionId: string;
+    sectionTitle: string;
+    fields: string[];
+};
+/** Missing field keys + labels for a single screening section (A, BP, B–G). */
+export declare function getMissingFieldsForSection(sectionId: string, record: Partial<HealthRecord>): Array<{
+    key: keyof HealthRecord;
+    label: string;
+}>;
+/** Per-section list of unanswered screening fields (human-readable labels). */
+export declare function getMissingScreeningFields(record: Partial<HealthRecord>): MissingSectionFields[];
 /**
- * Returns the count of completed scored domains (out of 8) based on
- * the presence of the required input fields for each domain.
+ * Returns the count of completed screening sections (out of 8: A, BP, B–G)
+ * matching domain completeness (all inputs present in a section).
  */
 export declare function countCompletedDomains(record: Partial<HealthRecord>): number;
 export declare function isRecordComplete(record: Partial<HealthRecord>): boolean;
+export {};
 //# sourceMappingURL=types.d.ts.map

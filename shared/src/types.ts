@@ -12,6 +12,8 @@ import type {
   healthRecordPartialSchema,
   exportRequestSchema,
   schoolSchema,
+  staffSchema,
+  staffAssessmentPartialSchema,
 } from './schemas.js';
 
 // ── Inferred types from schemas ────────────────────────────────────────
@@ -33,6 +35,8 @@ export type HealthRecordInput = z.infer<typeof healthRecordSchema>;
 export type HealthRecordPartial = z.infer<typeof healthRecordPartialSchema>;
 export type ExportRequest = z.infer<typeof exportRequestSchema>;
 export type SchoolInput = z.infer<typeof schoolSchema>;
+export type StaffInput = z.infer<typeof staffSchema>;
+export type StaffAssessmentPartial = z.infer<typeof staffAssessmentPartialSchema>;
 
 // ── API response types ─────────────────────────────────────────────────
 export interface School {
@@ -54,6 +58,17 @@ export interface Student {
   schoolId: number;
   school?: School;
   healthRecord?: HealthRecord | null;
+  dateOfBirth?: string | null;
+  bloodGroup?: string | null;
+  email?: string | null;
+  mobileNo?: string | null;
+  fatherMobileNo?: string | null;
+  nomineeName?: string | null;
+  relationship?: string | null;
+  courseName?: string | null;
+  collegeStream?: string | null;
+  localAddress?: string | null;
+  area?: string | null;
   createdAt: string | Date;
 }
 
@@ -62,49 +77,100 @@ export interface HealthRecord {
   studentId: number;
   date: string | null;
 
-  // Domain 1: Undernutrition
+  // Section A – Anthropometry (height/weight/waist reused from prior schema)
   height: number | null;
   weight: number | null;
-  undernutritionClass: string | null;
+  muac: number | null;
+  waistCircumference: number | null;
 
-  // Domain 2: Overweight/Obesity
-  overweightClass: string | null;
-
-  // Domain 3: Anaemia
-  hb: number | null;
-  anaemiaClass: string | null;
-
-  // Domain 4: Blood Pressure
+  // Blood Pressure & Random Blood Sugar
   systolic: number | null;
   diastolic: number | null;
   bpClass: string | null;
+  randomBloodSugar: number | null;
 
-  // Domain 5: Metabolic Risk
-  waistCircumference: number | null;
-  familyHxCount: number | null;
-  metabolicRiskClass: string | null;
+  // Section B – Diet
+  breakfast: string | null;
+  fruitIntake: string | null;
+  vegetables: string | null;
+  proteinIntake: string | null;
+  junkFood: string | null;
+  sugaryDrinks: string | null;
+  waterIntake: string | null;
 
-  // Domain 6: Vision
-  rightEyeAcuity: number | null;
-  leftEyeAcuity: number | null;
+  // Section C – Lifestyle
+  physicalActivity: string | null;
+  screenTime: string | null;
+  outdoorPlay: string | null;
+  sleepHours: string | null;
+  smoking: string | null;
+  alcohol: string | null;
 
-  // Domain 7: Oral Health
-  decayedTeethCount: number | null;
+  // Section D – Medical History
+  chronicDisease: string | null;
+  frequentFever: string | null;
+  weightLoss: string | null;
+  poorAppetite: string | null;
+  repeatedInfection: string | null;
+  hospitalisation: string | null;
+  medication: string | null;
 
-  // Domain 8: Respiratory
-  wheezeSymptom: string | null;
-  measuredPefr: number | null;
-  predictedPefr: number | null;
+  // Section E – Mental Wellness
+  stress: string | null;
+  mood: string | null;
+  concentration: string | null;
+  bullying: string | null;
 
-  // TB Red-Flag Screen
-  tbCough: string | null;
-  tbFever: string | null;
-  tbNightSweats: string | null;
-  tbWeightLoss: string | null;
+  // Section F – Clinical Observation
+  pallor: string | null;
+  dentalCaries: string | null;
+  poorOralHygiene: string | null;
+  visionProblem: string | null;
+  hairChanges: string | null;
+  skinChanges: string | null;
+  clubbing: string | null;
 
-  // Mental Wellbeing
-  mentalWellbeingResult: string | null;
+  // Section G – Preventive Health
+  vaccinationComplete: string | null;
+  deworming: string | null;
+  handHygiene: string | null;
+  dentalCheckup: string | null;
+  visionScreening: string | null;
 
+  /** Remarks for Yes answers on Yes/No fields */
+  yesNoRemarks: Record<string, string> | null;
+
+  /** Marked complete by the fieldworker (may still have blank fields) */
+  assessmentComplete: boolean;
+
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface Staff {
+  id: number;
+  staffCode: string;
+  name: string;
+  age: number;
+  gender: 'M' | 'F';
+  designation?: string | null;
+  department?: string | null;
+  email?: string | null;
+  mobileNo?: string | null;
+  schoolId: number;
+  school?: School;
+  assessment?: StaffAssessment | null;
+  createdAt: string | Date;
+  _status?: {
+    isComplete: boolean;
+  };
+}
+
+export interface StaffAssessment {
+  id: number;
+  staffId: number;
+  assessmentComplete: boolean;
+  payload: Record<string, unknown> | null;
   createdAt: string | Date;
   updatedAt: string | Date;
 }
@@ -164,40 +230,151 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 }
 
 // ── Completion check helpers ───────────────────────────────────────────
+const filled = (v: unknown) =>
+  v !== null && v !== undefined && v !== '' && !(typeof v === 'number' && Number.isNaN(v));
+
+type SectionField = { key: keyof HealthRecord; label: string };
+
+export const SCREENING_SECTIONS: Array<{ id: string; title: string; fields: SectionField[] }> = [
+  {
+    id: 'A',
+    title: 'A — Anthropometry',
+    fields: [
+      { key: 'height', label: 'Height' },
+      { key: 'weight', label: 'Weight' },
+      { key: 'muac', label: 'MUAC' },
+      { key: 'waistCircumference', label: 'Waist Circumference' },
+    ],
+  },
+  {
+    id: 'BP',
+    title: 'Blood Pressure & RBS',
+    fields: [
+      { key: 'systolic', label: 'Systolic BP' },
+      { key: 'diastolic', label: 'Diastolic BP' },
+      { key: 'bpClass', label: 'BP Class' },
+      { key: 'randomBloodSugar', label: 'Random Blood Sugar' },
+    ],
+  },
+  {
+    id: 'B',
+    title: 'B — Diet',
+    fields: [
+      { key: 'breakfast', label: 'Breakfast' },
+      { key: 'fruitIntake', label: 'Fruit Intake' },
+      { key: 'vegetables', label: 'Vegetables' },
+      { key: 'proteinIntake', label: 'Protein Intake' },
+      { key: 'junkFood', label: 'Junk Food' },
+      { key: 'sugaryDrinks', label: 'Sugary Drinks' },
+      { key: 'waterIntake', label: 'Water Intake' },
+    ],
+  },
+  {
+    id: 'C',
+    title: 'C — Lifestyle',
+    fields: [
+      { key: 'physicalActivity', label: 'Physical Activity' },
+      { key: 'screenTime', label: 'Screen Time' },
+      { key: 'outdoorPlay', label: 'Outdoor Play' },
+      { key: 'sleepHours', label: 'Sleep Hours' },
+      { key: 'smoking', label: 'Smoking' },
+      { key: 'alcohol', label: 'Alcohol' },
+    ],
+  },
+  {
+    id: 'D',
+    title: 'D — Medical History',
+    fields: [
+      { key: 'chronicDisease', label: 'Chronic Disease' },
+      { key: 'frequentFever', label: 'Frequent Fever' },
+      { key: 'weightLoss', label: 'Weight Loss' },
+      { key: 'poorAppetite', label: 'Poor Appetite' },
+      { key: 'repeatedInfection', label: 'Repeated Infection' },
+      { key: 'hospitalisation', label: 'Hospitalisation' },
+      { key: 'medication', label: 'Medication' },
+    ],
+  },
+  {
+    id: 'E',
+    title: 'E — Mental Wellness',
+    fields: [
+      { key: 'stress', label: 'Stress' },
+      { key: 'mood', label: 'Mood' },
+      { key: 'concentration', label: 'Concentration' },
+      { key: 'bullying', label: 'Bullying' },
+    ],
+  },
+  {
+    id: 'F',
+    title: 'F — Clinical Observation',
+    fields: [
+      { key: 'pallor', label: 'Pallor' },
+      { key: 'dentalCaries', label: 'Dental Caries' },
+      { key: 'poorOralHygiene', label: 'Poor Oral Hygiene' },
+      { key: 'visionProblem', label: 'Vision Problem' },
+      { key: 'hairChanges', label: 'Hair Changes' },
+      { key: 'skinChanges', label: 'Skin Changes' },
+      { key: 'clubbing', label: 'Clubbing' },
+    ],
+  },
+  {
+    id: 'G',
+    title: 'G — Preventive Health',
+    fields: [
+      { key: 'vaccinationComplete', label: 'Vaccination Complete' },
+      { key: 'deworming', label: 'Deworming' },
+      { key: 'handHygiene', label: 'Hand Hygiene' },
+      { key: 'dentalCheckup', label: 'Dental Check-up' },
+      { key: 'visionScreening', label: 'Vision Screening' },
+    ],
+  },
+];
+
+export type MissingSectionFields = {
+  sectionId: string;
+  sectionTitle: string;
+  fields: string[];
+};
+
+/** Missing field keys + labels for a single screening section (A, BP, B–G). */
+export function getMissingFieldsForSection(
+  sectionId: string,
+  record: Partial<HealthRecord>
+): Array<{ key: keyof HealthRecord; label: string }> {
+  const section = SCREENING_SECTIONS.find((s) => s.id === sectionId);
+  if (!section) return [];
+  return section.fields.filter(({ key }) => !filled(record[key]));
+}
+
+/** Per-section list of unanswered screening fields (human-readable labels). */
+export function getMissingScreeningFields(
+  record: Partial<HealthRecord>
+): MissingSectionFields[] {
+  const missing: MissingSectionFields[] = [];
+  for (const section of SCREENING_SECTIONS) {
+    const fields = getMissingFieldsForSection(section.id, record).map(({ label }) => label);
+    if (fields.length > 0) {
+      missing.push({
+        sectionId: section.id,
+        sectionTitle: section.title,
+        fields,
+      });
+    }
+  }
+  return missing;
+}
+
 /**
- * Returns the count of completed scored domains (out of 8) based on
- * the presence of the required input fields for each domain.
+ * Returns the count of completed screening sections (out of 8: A, BP, B–G)
+ * matching domain completeness (all inputs present in a section).
  */
 export function countCompletedDomains(record: Partial<HealthRecord>): number {
-  let count = 0;
-
-  // Domain 1: Undernutrition — needs height, weight, and classification
-  if (record.height != null && record.weight != null && record.undernutritionClass) count++;
-
-  // Domain 2: Overweight/Obesity — needs classification
-  if (record.overweightClass) count++;
-
-  // Domain 3: Anaemia — needs Hb and classification
-  if (record.hb != null && record.anaemiaClass) count++;
-
-  // Domain 4: Blood Pressure — needs systolic, diastolic, classification
-  if (record.systolic != null && record.diastolic != null && record.bpClass) count++;
-
-  // Domain 5: Metabolic Risk — needs waist, familyHx, classification
-  if (record.waistCircumference != null && record.metabolicRiskClass) count++;
-
-  // Domain 6: Vision — needs both eye acuities (classification auto-computed)
-  if (record.rightEyeAcuity != null && record.leftEyeAcuity != null) count++;
-
-  // Domain 7: Oral Health — needs decayed teeth count (classification auto-computed)
-  if (record.decayedTeethCount != null) count++;
-
-  // Domain 8: Respiratory — needs wheeze or PEFR data (classification auto-computed)
-  if (record.wheezeSymptom != null || record.measuredPefr != null) count++;
-
-  return count;
+  return SCREENING_SECTIONS.filter((section) =>
+    section.fields.every(({ key }) => filled(record[key]))
+  ).length;
 }
 
 export function isRecordComplete(record: Partial<HealthRecord>): boolean {
+  if (record.assessmentComplete === true) return true;
   return countCompletedDomains(record) === 8;
 }
