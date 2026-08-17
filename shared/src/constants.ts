@@ -291,6 +291,10 @@ export const SCORE_BANDS = {
   RED: { label: 'Red - Refer', min: 0, max: 59 },
 } as const;
 
+// ── Doctor Appointments ────────────────────────────────────────────────
+export const APPOINTMENT_STATUS = ['booked', 'cancelled'] as const;
+export type AppointmentStatus = (typeof APPOINTMENT_STATUS)[number];
+
 // ── SAFE Programme Audit ───────────────────────────────────────────────
 export const SAFE_GRADES = ['Platinum', 'Gold', 'Silver', 'Bronze', 'None'] as const;
 export type SafeGrade = (typeof SAFE_GRADES)[number];

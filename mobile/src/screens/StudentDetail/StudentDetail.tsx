@@ -3,12 +3,14 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import Feather from '@expo/vector-icons/Feather';
-import type { Student, HealthRecord } from '@wish2care/shared';
-import { countCompletedDomains, isRecordComplete } from '@wish2care/shared';
+import type { Student, HealthRecord, Appointment, RiskCategory } from '@wish2care/shared';
+import { countCompletedDomains, isRecordComplete, computeScreeningScores } from '@wish2care/shared';
 import { fetchApi } from '../../lib/api';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 import { ProgressRing } from './ProgressRing';
+import { useAuth } from '../../hooks/useAuth';
+import { formatDateLong, isUpcoming, nowLocalTime, todayLocalDate } from '../DoctorAppointment/dateUtils';
 import type { RootStackParamList } from '../../navigation/types';
 
 type StudentWithRecord = Student & { healthRecord: HealthRecord | null };
@@ -19,6 +21,22 @@ function timeGreeting() {
   if (hours >= 12 && hours < 17) return 'Good afternoon';
   if (hours >= 17) return 'Good evening';
   return 'Good morning';
+}
+
+function riskColor(category: RiskCategory | null): string {
+  switch (category) {
+    case 'Green - Healthy':
+    case 'Light Green - Mild Watch':
+      return colors.pineGreen;
+    case 'Yellow - Mild Risk':
+      return '#B26A00';
+    case 'Orange - Moderate Risk':
+      return '#C2410C';
+    case 'Red - High Risk':
+      return '#B3261E';
+    default:
+      return colors.pineGreen;
+  }
 }
 
 type QuickActionProps = {
@@ -46,6 +64,7 @@ function QuickAction({ icon, label, color, onPress }: QuickActionProps) {
 
 export function StudentDetailScreen() {
   const navigation = useNavigation<StudentDetailNavigationProp>();
+  const { user } = useAuth();
   const route = useRoute<RouteProp<RootStackParamList, 'StudentDetail'>>();
   const { studentId, schoolName } = route.params;
   const {
@@ -55,6 +74,12 @@ export function StudentDetailScreen() {
   } = useQuery<StudentWithRecord | null>({
     queryKey: ['students', studentId],
     queryFn: async () => (await fetchApi(`/students/${studentId}`))?.data ?? null,
+  });
+
+  const { data: appointments } = useQuery<Appointment[]>({
+    queryKey: ['appointments', 'me'],
+    queryFn: async () => (await fetchApi('/appointments/me'))?.data ?? [],
+    enabled: user?.role === 'student',
   });
 
   if (isLoading) {
@@ -77,6 +102,10 @@ export function StudentDetailScreen() {
   const complete = student.healthRecord ? isRecordComplete(student.healthRecord) : false;
   const remaining = 8 - completed;
   const displaySchoolName = schoolName ?? student.school?.name;
+  const scores = student.healthRecord ? computeScreeningScores(student.healthRecord) : null;
+  const wellnessScore = scores?.overallHealthScore ?? null;
+  const riskCategory = scores?.riskCategory ?? null;
+  const upcomingAppointment = appointments?.find((a) => isUpcoming(a, todayLocalDate(), nowLocalTime()));
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -87,15 +116,31 @@ export function StudentDetailScreen() {
       </View>
 
       <View style={styles.scoreCard}>
-        <ProgressRing progress={completed / 8} size={88} strokeWidth={8}>
-          <Text style={styles.scoreValue}>{completed}/8</Text>
-        </ProgressRing>
-        <View style={styles.scoreText}>
-          <Text style={styles.scoreLabel}>Screening Progress</Text>
-          <Text style={styles.scoreStatus}>
-            {complete ? 'Complete' : `${remaining} domain${remaining === 1 ? '' : 's'} remaining`}
-          </Text>
-        </View>
+        {wellnessScore != null ? (
+          <>
+            <ProgressRing progress={wellnessScore / 100} size={88} strokeWidth={8} color={riskColor(riskCategory)}>
+              <Text style={styles.scoreValue}>{wellnessScore}</Text>
+            </ProgressRing>
+            <View style={styles.scoreText}>
+              <Text style={styles.scoreLabel}>Wellness Score</Text>
+              <Text style={[styles.scoreStatus, { color: riskColor(riskCategory) }]}>{riskCategory}</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <ProgressRing progress={completed / 8} size={88} strokeWidth={8}>
+              <Text style={styles.scoreValue}>{completed}/8</Text>
+            </ProgressRing>
+            <View style={styles.scoreText}>
+              <Text style={styles.scoreLabel}>Screening Progress</Text>
+              <Text style={styles.scoreStatus}>
+                {complete
+                  ? 'Complete'
+                  : `${remaining} domain${remaining === 1 ? '' : 's'} remaining for your Wellness Score`}
+              </Text>
+            </View>
+          </>
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -105,10 +150,12 @@ export function StudentDetailScreen() {
           label="Doctor"
           color={colors.eminence}
           onPress={() =>
-            navigation.navigate('ComingSoon', {
-              title: 'Doctor Appointments',
-              message: 'Scheduling appointments with a doctor is coming soon.',
-            })
+            user?.role === 'student'
+              ? navigation.navigate('DoctorAppointment')
+              : navigation.navigate('ComingSoon', {
+                  title: 'Doctor Appointments',
+                  message: 'Scheduling appointments with a doctor is coming soon.',
+                })
           }
         />
         <QuickAction
@@ -130,6 +177,27 @@ export function StudentDetailScreen() {
         />
         <QuickAction icon="phone-call" label="SOS" color="#B3261E" onPress={() => Linking.openURL('tel:108')} />
       </View>
+
+      {upcomingAppointment ? (
+        <Pressable
+          style={({ pressed }) => [styles.appointmentCard, pressed && styles.actionPressed]}
+          onPress={() => navigation.navigate('DoctorAppointment')}
+          accessibilityRole="button"
+          accessibilityLabel="View upcoming doctor appointment"
+        >
+          <View style={styles.appointmentIcon}>
+            <Feather name="calendar" size={20} color={colors.eminence} />
+          </View>
+          <View style={styles.appointmentText}>
+            <Text style={styles.appointmentLabel}>Upcoming Appointment</Text>
+            <Text style={styles.appointmentDoctor}>{upcomingAppointment.doctorName}</Text>
+            <Text style={styles.appointmentMeta}>
+              {formatDateLong(upcomingAppointment.appointmentDate)} · {upcomingAppointment.startTime}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={colors.raisinBlack + '60'} />
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
@@ -233,5 +301,42 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 14,
     color: colors.raisinBlack,
+  },
+  appointmentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+  },
+  appointmentIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.eminence + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appointmentText: {
+    flex: 1,
+    gap: 2,
+  },
+  appointmentLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.raisinBlack + '90',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  appointmentDoctor: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: colors.eminence,
+  },
+  appointmentMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.raisinBlack + '90',
   },
 });
