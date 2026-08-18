@@ -24,7 +24,6 @@ import {
   MOOD_OPTIONS,
   CONCENTRATION_OPTIONS,
   HAND_HYGIENE_OPTIONS,
-  isRecordComplete,
   getMissingScreeningFields,
   getMissingFieldsForSection,
   computeScreeningScores,
@@ -390,9 +389,8 @@ export function StudentFormPage() {
   };
 
   const isSubmitted =
-    !!data?.data?.healthRecord &&
-    isRecordComplete(data.data.healthRecord) &&
-    user?.role === 'fieldworker';
+  data?.data?.healthRecord?.assessmentComplete === true &&
+  user?.role === 'fieldworker';
 
   const riskAccent =
     scores.riskCategory?.startsWith('Green')
