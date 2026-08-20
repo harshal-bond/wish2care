@@ -8,7 +8,7 @@ export const YES_PARTIAL_NO = ['Yes', 'Partial', 'No'];
 // ── Gender ─────────────────────────────────────────────────────────────
 export const GENDER_OPTIONS = ['M', 'F'];
 // ── Roles ──────────────────────────────────────────────────────────────
-export const ROLES = ['admin', 'fieldworker', 'student'];
+export const ROLES = ['admin', 'fieldworker'];
 // ── Diet Quality options ───────────────────────────────────────────────
 export const BREAKFAST_OPTIONS = ['Always', 'Sometimes', 'Never'];
 export const FRUIT_INTAKE_OPTIONS = ['Daily', '3-5 per week', 'Rarely'];

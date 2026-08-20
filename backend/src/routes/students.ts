@@ -1,22 +1,16 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
-import { authMiddleware, requireAdmin, requireWorker, requireOwnStudentId } from '../middleware/auth.js';
-import {
-  studentSchema,
-  studentMentalHealthSchema,
-  setStudentPhoneSchema,
-  isRecordComplete,
-  countCompletedDomains,
-} from '@wish2care/shared';
-import { eq, ilike, or, and, desc, count } from 'drizzle-orm';
+import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { studentSchema, studentMentalHealthSchema, isRecordComplete, countCompletedDomains } from '@wish2care/shared';
+import { eq, like, ilike, or, and, desc, count } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/studentCode.js';
 
 export const studentsRoutes = new Hono();
 
 studentsRoutes.use('/*', authMiddleware);
 
-studentsRoutes.get('/', requireWorker, async (c) => {
+studentsRoutes.get('/', async (c) => {
   const user = c.get('user');
   const search = c.req.query('search');
   const schoolId = c.req.query('schoolId');
@@ -189,8 +183,8 @@ studentsRoutes.get('/', requireWorker, async (c) => {
   }
 });
 
-studentsRoutes.get('/:id', requireOwnStudentId('id'), async (c) => {
-  const id = parseInt(c.req.param('id') ?? '', 10);
+studentsRoutes.get('/:id', async (c) => {
+  const id = parseInt(c.req.param('id'), 10);
   if (isNaN(id)) return c.json({ success: false, error: 'Invalid ID' }, 400);
 
   const rows = await db.select({
@@ -218,7 +212,7 @@ studentsRoutes.get('/:id', requireOwnStudentId('id'), async (c) => {
 });
 
 
-studentsRoutes.post('/', requireWorker, async (c) => {
+studentsRoutes.post('/', async (c) => {
   try {
     const body = await c.req.json();
     
@@ -245,36 +239,6 @@ studentsRoutes.post('/', requireWorker, async (c) => {
     const [student] = await db.insert(students).values(result.data as any).returning();
     return c.json({ success: true, data: student });
   } catch (err: any) {
-    return c.json({ success: false, error: err.message }, 500);
-  }
-});
-
-// Admin-only: set/update a student's login phone number. Decoupled from
-// creation since the real creation path (Excel upload) doesn't collect one.
-studentsRoutes.post('/:id/phone', requireAdmin, async (c) => {
-  const id = parseInt(c.req.param('id') ?? '', 10);
-  if (isNaN(id)) return c.json({ success: false, error: 'Invalid ID' }, 400);
-
-  try {
-    const body = await c.req.json();
-    const result = setStudentPhoneSchema.safeParse(body);
-    if (!result.success) {
-      return c.json({ success: false, error: 'Invalid input', details: result.error.errors }, 400);
-    }
-
-    const [student] = await db
-      .update(students)
-      .set({ phone: result.data.phone })
-      .where(eq(students.id, id))
-      .returning();
-
-    if (!student) return c.json({ success: false, error: 'Student not found' }, 404);
-
-    return c.json({ success: true, data: student });
-  } catch (err: any) {
-    if (err.code === '23505') {
-      return c.json({ success: false, error: 'This phone number is already in use by another student' }, 409);
-    }
     return c.json({ success: false, error: err.message }, 500);
   }
 });
@@ -321,7 +285,7 @@ studentsRoutes.get('/mental-health/all', requireAdmin, async (c) => {
 });
 
 
-studentsRoutes.get('/:id/mental-health', requireOwnStudentId('id'), async (c) => {
+studentsRoutes.get('/:id/mental-health', async (c) => {
   const studentId = parseInt(c.req.param('id') ?? '', 10);
   if (isNaN(studentId)) return c.json({ success: false, error: 'Invalid ID' }, 400);
 
@@ -338,7 +302,7 @@ studentsRoutes.get('/:id/mental-health', requireOwnStudentId('id'), async (c) =>
   }
 });
 
-studentsRoutes.post('/:id/mental-health', requireWorker, async (c) => {
+studentsRoutes.post('/:id/mental-health', async (c) => {
   const studentId = parseInt(c.req.param('id') ?? '', 10);
   if (isNaN(studentId)) return c.json({ success: false, error: 'Invalid ID' }, 400);
 

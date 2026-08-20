@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { students, healthRecords, schools } from '../db/schema.js';
-import { authMiddleware, requireWorker } from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 import { eq, inArray } from 'drizzle-orm';
 import {
   EXCEL_COLUMN_MAP,
@@ -15,7 +15,6 @@ import fs from 'fs';
 export const exportRoutes = new Hono();
 
 exportRoutes.use('/*', authMiddleware);
-exportRoutes.use('/*', requireWorker);
 
 function genderLabel(g: string | null | undefined): string {
   if (g === 'M') return 'Male';
