@@ -1,5 +1,5 @@
-import { pgTable, serial, varchar, timestamp, integer, boolean, real, jsonb, text, index, uniqueIndex } from 'drizzle-orm/pg-core';
-import { relations, sql } from 'drizzle-orm';
+import { pgTable, serial, varchar, timestamp, integer, boolean, real, jsonb, text, index } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 // ── Schools ────────────────────────────────────────────────────────────
 export const schools = pgTable('schools', {
     id: serial('id').primaryKey(),
@@ -167,69 +167,6 @@ export const healthRecords = pgTable('health_records', {
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
-// ── Doctors & Appointments ──────────────────────────────────────────────
-export const doctors = pgTable('doctors', {
-    id: serial('id').primaryKey(),
-    name: varchar('name', { length: 255 }).notNull(),
-    specialization: varchar('specialization', { length: 255 }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-// Recurring weekly template — one row per (doctor, day-of-week) they work.
-export const doctorAvailability = pgTable('doctor_availability', {
-    id: serial('id').primaryKey(),
-    doctorId: integer('doctor_id')
-        .notNull()
-        .references(() => doctors.id, { onDelete: 'cascade' }),
-    dayOfWeek: integer('day_of_week').notNull(), // 0=Sunday .. 6=Saturday (matches JS Date#getDay())
-    startTime: varchar('start_time', { length: 5 }).notNull(), // 'HH:mm', IST wall-clock
-    endTime: varchar('end_time', { length: 5 }).notNull(),
-    slotMinutes: integer('slot_minutes').notNull().default(30),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-// The actual bookings. History is preserved — cancelled rows stay, they just
-// stop counting toward "booked" for availability purposes.
-export const doctorAppointments = pgTable('doctor_appointments', {
-    id: serial('id').primaryKey(),
-    doctorId: integer('doctor_id')
-        .notNull()
-        .references(() => doctors.id, { onDelete: 'cascade' }),
-    studentId: integer('student_id')
-        .notNull()
-        .references(() => students.id, { onDelete: 'cascade' }),
-    appointmentDate: varchar('appointment_date', { length: 10 }).notNull(), // 'YYYY-MM-DD'
-    startTime: varchar('start_time', { length: 5 }).notNull(),
-    endTime: varchar('end_time', { length: 5 }).notNull(),
-    status: varchar('status', { length: 20 }).notNull().default('booked'), // 'booked' | 'cancelled'
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    cancelledAt: timestamp('cancelled_at'),
-}, (t) => ({
-    // Only one *active* booking per doctor/date/time — this is what makes
-    // double-booking races impossible at the DB level. A cancelled+rebooked
-    // slot is fine (two rows, only one with status='booked').
-    activeSlotIdx: uniqueIndex('doctor_appointments_active_slot_idx')
-        .on(t.doctorId, t.appointmentDate, t.startTime)
-        .where(sql `status = 'booked'`),
-}));
-export const doctorsRelations = relations(doctors, ({ many }) => ({
-    availability: many(doctorAvailability),
-    appointments: many(doctorAppointments),
-}));
-export const doctorAvailabilityRelations = relations(doctorAvailability, ({ one }) => ({
-    doctor: one(doctors, {
-        fields: [doctorAvailability.doctorId],
-        references: [doctors.id],
-    }),
-}));
-export const doctorAppointmentsRelations = relations(doctorAppointments, ({ one }) => ({
-    doctor: one(doctors, {
-        fields: [doctorAppointments.doctorId],
-        references: [doctors.id],
-    }),
-    student: one(students, {
-        fields: [doctorAppointments.studentId],
-        references: [students.id],
-    }),
-}));
 // ── Relations ──────────────────────────────────────────────────────────
 export const schoolsRelations = relations(schools, ({ many }) => ({
     students: many(students),

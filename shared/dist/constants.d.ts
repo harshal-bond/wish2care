@@ -361,8 +361,6 @@ export declare const SCORE_BANDS: {
         readonly max: 59;
     };
 };
-export declare const APPOINTMENT_STATUS: readonly ["booked", "cancelled"];
-export type AppointmentStatus = (typeof APPOINTMENT_STATUS)[number];
 export declare const SAFE_GRADES: readonly ["Platinum", "Gold", "Silver", "Bronze", "None"];
 export type SafeGrade = (typeof SAFE_GRADES)[number];
 export declare const ACCREDITATION_STATUSES: readonly ["Accredited", "Provisionally Accredited", "Reassessment Required", "Not Accredited"];

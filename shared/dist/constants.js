@@ -240,8 +240,6 @@ export const SCORE_BANDS = {
     AMBER: { label: 'Amber - Monitor', min: 60, max: 79 },
     RED: { label: 'Red - Refer', min: 0, max: 59 },
 };
-// ── Doctor Appointments ────────────────────────────────────────────────
-export const APPOINTMENT_STATUS = ['booked', 'cancelled'];
 // ── SAFE Programme Audit ───────────────────────────────────────────────
 export const SAFE_GRADES = ['Platinum', 'Gold', 'Silver', 'Bronze', 'None'];
 export const ACCREDITATION_STATUSES = [

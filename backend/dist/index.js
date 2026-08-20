@@ -9,8 +9,6 @@ import { schoolsRoutes } from "./routes/schools.js";
 import { exportRoutes } from "./routes/export.js";
 import { healthRecordsRoutes } from "./routes/healthRecords.js";
 import { staffRoutes } from "./routes/staff.js";
-import { doctorsRoutes } from "./routes/doctors.js";
-import { appointmentsRoutes } from "./routes/appointments.js";
 import { db } from "./db/index.js";
 const app = new Hono();
 app.use("*", logger());
@@ -62,8 +60,6 @@ app.route("/api/students", studentsRoutes);
 app.route("/api/staff", staffRoutes);
 app.route("/api/health-records", healthRecordsRoutes);
 app.route("/api/export", exportRoutes);
-app.route("/api/doctors", doctorsRoutes);
-app.route("/api/appointments", appointmentsRoutes);
 app.onError((err, c) => {
     console.error(err);
     return c.json({

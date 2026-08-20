@@ -14,9 +14,7 @@ import type {
   schoolSchema,
   staffSchema,
   staffAssessmentPartialSchema,
-  bookAppointmentSchema,
 } from './schemas.js';
-import type { AppointmentStatus } from './constants.js';
 
 // ── Inferred types from schemas ────────────────────────────────────────
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -39,7 +37,6 @@ export type ExportRequest = z.infer<typeof exportRequestSchema>;
 export type SchoolInput = z.infer<typeof schoolSchema>;
 export type StaffInput = z.infer<typeof staffSchema>;
 export type StaffAssessmentPartial = z.infer<typeof staffAssessmentPartialSchema>;
-export type BookAppointmentInput = z.infer<typeof bookAppointmentSchema>;
 
 // ── API response types ─────────────────────────────────────────────────
 export interface School {
@@ -191,32 +188,6 @@ export interface Worker {
 export interface AuthResponse {
   token: string;
   worker: Omit<Worker, 'createdAt'>;
-}
-
-export interface Doctor {
-  id: number;
-  name: string;
-  specialization: string | null;
-  createdAt: string | Date;
-}
-
-export interface DoctorSlot {
-  startTime: string;
-  endTime: string;
-  available: boolean;
-}
-
-export interface Appointment {
-  id: number;
-  doctorId: number;
-  doctorName?: string;
-  studentId: number;
-  appointmentDate: string;
-  startTime: string;
-  endTime: string;
-  status: AppointmentStatus;
-  createdAt: string | Date;
-  cancelledAt: string | Date | null;
 }
 
 export interface StudentAuthResponse {

@@ -596,16 +596,6 @@ export declare const studentMentalHealthSchema: z.ZodObject<{
     responses: Record<string, number>;
     totalScore?: number | null | undefined;
 }>;
-export declare const bookAppointmentSchema: z.ZodObject<{
-    date: z.ZodString;
-    startTime: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    date: string;
-    startTime: string;
-}, {
-    date: string;
-    startTime: string;
-}>;
 export declare const schoolAuditChecklistSchema: z.ZodObject<{
     dateOfAudit: z.ZodString;
     auditorName: z.ZodString;
