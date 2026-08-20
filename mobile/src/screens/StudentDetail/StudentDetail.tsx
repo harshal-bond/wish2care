@@ -76,14 +76,13 @@ export function StudentDetailScreen() {
   const completed = student.healthRecord ? countCompletedDomains(student.healthRecord) : 0;
   const complete = student.healthRecord ? isRecordComplete(student.healthRecord) : false;
   const remaining = 8 - completed;
-  const displaySchoolName = schoolName ?? student.school?.name;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View>
         <Text style={styles.greeting}>{timeGreeting()},</Text>
         <Text style={styles.name}>{student.name}</Text>
-        {displaySchoolName ? <Text style={styles.school}>{displaySchoolName}</Text> : null}
+        {schoolName ? <Text style={styles.school}>{schoolName}</Text> : null}
       </View>
 
       <View style={styles.scoreCard}>

@@ -2,13 +2,89 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import type { Student, HealthRecord } from '@wish2care/shared';
-import { SCREENING_SECTIONS } from '@wish2care/shared';
+import { CLASSIFICATION } from '@wish2care/shared';
 import { fetchApi } from '../../lib/api';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 import type { RootStackParamList } from '../../navigation/types';
 
 type StudentWithRecord = Student & { healthRecord: HealthRecord | null };
+
+type DomainField = { key: keyof HealthRecord; label: string };
+type Domain = {
+  title: string;
+  classField?: keyof HealthRecord;
+  fields: DomainField[];
+};
+
+// Classification is only ever stored for these 5 domains — the other 3
+// (Vision, Oral Health, Respiratory) are "classification auto-computed by
+// Excel" per backend/src/db/schema.ts, meaning the DB only has raw inputs.
+const DOMAINS: Domain[] = [
+  {
+    title: 'Undernutrition',
+    classField: 'undernutritionClass',
+    fields: [
+      { key: 'height', label: 'Height (cm)' },
+      { key: 'weight', label: 'Weight (kg)' },
+    ],
+  },
+  { title: 'Overweight / Obesity', classField: 'overweightClass', fields: [] },
+  {
+    title: 'Anaemia',
+    classField: 'anaemiaClass',
+    fields: [{ key: 'hb', label: 'Hb (g/dL)' }],
+  },
+  {
+    title: 'Blood Pressure',
+    classField: 'bpClass',
+    fields: [
+      { key: 'systolic', label: 'Systolic' },
+      { key: 'diastolic', label: 'Diastolic' },
+    ],
+  },
+  {
+    title: 'Metabolic Risk',
+    classField: 'metabolicRiskClass',
+    fields: [
+      { key: 'waistCircumference', label: 'Waist Circumference (cm)' },
+      { key: 'familyHxCount', label: 'Family History Count' },
+    ],
+  },
+  {
+    title: 'Vision',
+    fields: [
+      { key: 'rightEyeAcuity', label: 'Right Eye Acuity' },
+      { key: 'leftEyeAcuity', label: 'Left Eye Acuity' },
+    ],
+  },
+  {
+    title: 'Oral Health',
+    fields: [{ key: 'decayedTeethCount', label: 'Decayed Teeth Count' }],
+  },
+  {
+    title: 'Respiratory',
+    fields: [
+      { key: 'wheezeSymptom', label: 'Wheeze Symptom' },
+      { key: 'measuredPefr', label: 'Measured PEFR' },
+      { key: 'predictedPefr', label: 'Predicted PEFR' },
+    ],
+  },
+];
+
+const TB_FIELDS: DomainField[] = [
+  { key: 'tbCough', label: 'Cough' },
+  { key: 'tbFever', label: 'Fever' },
+  { key: 'tbNightSweats', label: 'Night Sweats' },
+  { key: 'tbWeightLoss', label: 'Weight Loss' },
+];
+
+function classificationColor(value: string | null | undefined) {
+  if (value === CLASSIFICATION.NORMAL) return colors.pineGreen;
+  if (value === CLASSIFICATION.CAUTION) return '#B26A00';
+  if (value === CLASSIFICATION.HIGH_RISK) return '#B3261E';
+  return colors.raisinBlack + '60';
+}
 
 export function StudentReportScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'StudentReport'>>();
@@ -48,15 +124,25 @@ export function StudentReportScreen() {
     );
   }
 
+  const hasTbData = TB_FIELDS.some((f) => record[f.key] != null);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {SCREENING_SECTIONS.map((section) => {
-        const filledFields = section.fields.filter((f) => record[f.key] != null);
-        if (filledFields.length === 0) return null;
+      {DOMAINS.map((domain) => {
+        const classValue = domain.classField ? (record[domain.classField] as string | null) : null;
+        const filledFields = domain.fields.filter((f) => record[f.key] != null);
+        if (!classValue && filledFields.length === 0) return null;
 
         return (
-          <View key={section.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{section.title}</Text>
+          <View key={domain.title} style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>{domain.title}</Text>
+              {classValue ? (
+                <View style={[styles.badge, { backgroundColor: classificationColor(classValue) + '18' }]}>
+                  <Text style={[styles.badgeText, { color: classificationColor(classValue) }]}>{classValue}</Text>
+                </View>
+              ) : null}
+            </View>
             {filledFields.map((f) => (
               <View key={f.key} style={styles.row}>
                 <Text style={styles.rowLabel}>{f.label}</Text>
@@ -66,6 +152,41 @@ export function StudentReportScreen() {
           </View>
         );
       })}
+
+      {hasTbData && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>TB Screen</Text>
+          {TB_FIELDS.filter((f) => record[f.key] != null).map((f) => (
+            <View key={f.key} style={styles.row}>
+              <Text style={styles.rowLabel}>{f.label}</Text>
+              <Text style={styles.rowValue}>{String(record[f.key])}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {record.mentalWellbeingResult ? (
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Mental Wellbeing</Text>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: (record.mentalWellbeingResult === 'Clear' ? colors.pineGreen : '#B3261E') + '18' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.badgeText,
+                  { color: record.mentalWellbeingResult === 'Clear' ? colors.pineGreen : '#B3261E' },
+                ]}
+              >
+                {record.mentalWellbeingResult}
+              </Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

@@ -3,9 +3,12 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
-export type JwtPayload =
-  | { id: number; role: 'admin' | 'fieldworker'; email: string; assignedSchoolId: number | null }
-  | { id: number; role: 'student' };
+export interface JwtPayload {
+  id: number;
+  email: string;
+  role: 'admin' | 'fieldworker';
+  assignedSchoolId: number | null;
+}
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -33,25 +36,6 @@ export const requireAdmin = async (c: Context, next: Next) => {
   const user = c.get('user');
   if (!user || user.role !== 'admin') {
     return c.json({ success: false, error: 'Forbidden: Admin access required' }, 403);
-  }
-  await next();
-};
-
-export const requireWorker = async (c: Context, next: Next) => {
-  const user = c.get('user');
-  if (!user || user.role === 'student') {
-    return c.json({ success: false, error: 'Forbidden: Worker access required' }, 403);
-  }
-  await next();
-};
-
-export const requireOwnStudentId = (paramName: string) => async (c: Context, next: Next) => {
-  const user = c.get('user');
-  if (user?.role === 'student') {
-    const requestedId = parseInt(c.req.param(paramName) ?? '', 10);
-    if (requestedId !== user.id) {
-      return c.json({ success: false, error: 'Forbidden' }, 403);
-    }
   }
   await next();
 };

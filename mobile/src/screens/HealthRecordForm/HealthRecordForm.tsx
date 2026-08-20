@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { useForm, Resolver } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { HealthRecord, HealthRecordPartial, Student } from '@wish2care/shared';
 import { healthRecordPartialSchema } from '@wish2care/shared';
@@ -32,18 +32,14 @@ export function HealthRecordFormScreen() {
   });
 
   const form = useForm<HealthRecordPartial>({
-    // healthRecordPartialSchema's optional enum fields use z.transform(), so the
-    // resolver's inferred input/output types don't line up with HealthRecordPartial
-    // (z.output) exactly — the cast is safe since zodResolver handles the transform
-    // correctly at runtime regardless.
-    resolver: zodResolver(healthRecordPartialSchema) as unknown as Resolver<HealthRecordPartial>,
+    resolver: zodResolver(healthRecordPartialSchema),
     defaultValues: { studentId },
     mode: 'onTouched',
   });
 
   useEffect(() => {
     if (student?.healthRecord) {
-      form.reset({ ...student.healthRecord, studentId } as HealthRecordPartial);
+      form.reset({ ...student.healthRecord, studentId });
     }
   }, [student, studentId, form]);
 

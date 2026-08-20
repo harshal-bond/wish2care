@@ -18,44 +18,20 @@ export declare const registerWorkerSchema: z.ZodObject<{
     name: z.ZodString;
     email: z.ZodString;
     password: z.ZodString;
-    role: z.ZodDefault<z.ZodEnum<["admin", "fieldworker", "student"]>>;
+    role: z.ZodDefault<z.ZodEnum<["admin", "fieldworker"]>>;
     assignedSchoolId: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     email: string;
     password: string;
     name: string;
-    role: "admin" | "fieldworker" | "student";
+    role: "admin" | "fieldworker";
     assignedSchoolId?: number | null | undefined;
 }, {
     email: string;
     password: string;
     name: string;
-    role?: "admin" | "fieldworker" | "student" | undefined;
+    role?: "admin" | "fieldworker" | undefined;
     assignedSchoolId?: number | null | undefined;
-}>;
-export declare const requestOtpSchema: z.ZodObject<{
-    phone: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    phone: string;
-}, {
-    phone: string;
-}>;
-export declare const verifyOtpSchema: z.ZodObject<{
-    phone: z.ZodString;
-    otp: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    phone: string;
-    otp: string;
-}, {
-    phone: string;
-    otp: string;
-}>;
-export declare const setStudentPhoneSchema: z.ZodObject<{
-    phone: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    phone: string;
-}, {
-    phone: string;
 }>;
 export declare const schoolSchema: z.ZodObject<{
     name: z.ZodString;
