@@ -8,7 +8,7 @@ export declare const YES_PARTIAL_NO: readonly ["Yes", "Partial", "No"];
 export type YesPartialNo = (typeof YES_PARTIAL_NO)[number];
 export declare const GENDER_OPTIONS: readonly ["M", "F"];
 export type Gender = (typeof GENDER_OPTIONS)[number];
-export declare const ROLES: readonly ["admin", "fieldworker"];
+export declare const ROLES: readonly ["admin", "fieldworker", "student"];
 export type Role = (typeof ROLES)[number];
 export declare const BREAKFAST_OPTIONS: readonly ["Always", "Sometimes", "Never"];
 export declare const FRUIT_INTAKE_OPTIONS: readonly ["Daily", "3-5 per week", "Rarely"];
