@@ -25,6 +25,10 @@ export declare const requireWorker: (c: Context, next: Next) => Promise<(Respons
     success: false;
     error: string;
 }, 403, "json">) | undefined>;
+export declare const requireStudent: (c: Context, next: Next) => Promise<(Response & import("hono").TypedResponse<{
+    success: false;
+    error: string;
+}, 403, "json">) | undefined>;
 export declare const requireOwnStudentId: (paramName: string) => (c: Context, next: Next) => Promise<(Response & import("hono").TypedResponse<{
     success: false;
     error: string;

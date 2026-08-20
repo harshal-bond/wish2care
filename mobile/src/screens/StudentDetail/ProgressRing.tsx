@@ -7,10 +7,11 @@ type ProgressRingProps = {
   progress: number; // 0 to 1
   size?: number;
   strokeWidth?: number;
+  color?: string;
   children?: ReactNode;
 };
 
-export function ProgressRing({ progress, size = 88, strokeWidth = 8, children }: ProgressRingProps) {
+export function ProgressRing({ progress, size = 88, strokeWidth = 8, color = colors.pineGreen, children }: ProgressRingProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(1, progress));
@@ -24,7 +25,7 @@ export function ProgressRing({ progress, size = 88, strokeWidth = 8, children }:
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={colors.pineGreen}
+          stroke={color}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={offset}

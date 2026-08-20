@@ -45,6 +45,14 @@ export const requireWorker = async (c: Context, next: Next) => {
   await next();
 };
 
+export const requireStudent = async (c: Context, next: Next) => {
+  const user = c.get('user');
+  if (!user || user.role !== 'student') {
+    return c.json({ success: false, error: 'Forbidden: Student access required' }, 403);
+  }
+  await next();
+};
+
 export const requireOwnStudentId = (paramName: string) => async (c: Context, next: Next) => {
   const user = c.get('user');
   if (user?.role === 'student') {

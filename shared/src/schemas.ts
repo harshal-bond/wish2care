@@ -276,6 +276,12 @@ export const studentMentalHealthSchema = z.object({
   totalScore: z.coerce.number().optional().nullable(),
 });
 
+// ── Doctor appointment booking ─────────────────────────────────────────
+export const bookAppointmentSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:mm format'),
+});
+
 // ── School Audit Checklist Schema ──────────────────────────────────────
 export const schoolAuditChecklistSchema = z.object({
   dateOfAudit: z.string().min(1, 'Date of Audit is required'),

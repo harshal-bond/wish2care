@@ -7,6 +7,7 @@ import { HomeScreen } from '../screens/Home/Home';
 import { StudentDetailScreen } from '../screens/StudentDetail/StudentDetail';
 import { StudentReportScreen } from '../screens/StudentReport/StudentReport';
 import { HealthRecordFormScreen } from '../screens/HealthRecordForm/HealthRecordForm';
+import { DoctorAppointmentScreen } from '../screens/DoctorAppointment/DoctorAppointment';
 import { ComingSoonScreen } from '../screens/ComingSoon/ComingSoon';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useAuth } from '../hooks/useAuth';
@@ -69,6 +70,11 @@ export function RootNavigator() {
                 name="StudentReport"
                 component={StudentReportScreen}
                 options={{ ...brandedHeader, title: 'Report' }}
+              />
+              <Stack.Screen
+                name="DoctorAppointment"
+                component={DoctorAppointmentScreen}
+                options={{ ...brandedHeader, title: 'Doctor Appointment' }}
               />
               <Stack.Screen
                 name="ComingSoon"

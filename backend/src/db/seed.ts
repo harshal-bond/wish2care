@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { db } from './index.js';
-import { schools, workers, students, healthRecords } from './schema.js';
+import { schools, workers, students, healthRecords, doctors, doctorAvailability } from './schema.js';
 import bcrypt from 'bcryptjs';
 
 async function main() {
@@ -100,6 +100,27 @@ async function main() {
     dentalCheckup: 'Yes',
     visionScreening: 'Yes',
   });
+
+  // Doctors, each available Mon-Sat 9am-5pm IST in 30-min slots
+  const doctorSeeds = [
+    { name: 'Dr. Asha Verma', specialization: 'General Physician' },
+    { name: 'Dr. Rohan Mehta', specialization: 'Pediatrician' },
+    { name: 'Dr. Priya Nair', specialization: 'Dentist' },
+  ];
+
+  for (const seed of doctorSeeds) {
+    const [doctor] = await db.insert(doctors).values(seed).returning();
+    await db.insert(doctorAvailability).values(
+      [1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+        doctorId: doctor.id,
+        dayOfWeek,
+        startTime: '09:00',
+        endTime: '17:00',
+        slotMinutes: 30,
+      }))
+    );
+    console.log(`Created doctor: ${doctor.name} (${doctor.specialization})`);
+  }
 
   console.log('Database seeded successfully!');
   process.exit(0);
