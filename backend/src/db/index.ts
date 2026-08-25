@@ -6,7 +6,7 @@ import * as schema from './schema.js';
 // Prefer Neon pooled URL (-pooler) in production to avoid connection exhaustion.
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/wish2care';
 const client = postgres(connectionString, {
-  max: 2,
+  max: 20,
   idle_timeout: 20,
   connect_timeout: 10,
 });
