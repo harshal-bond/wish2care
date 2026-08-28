@@ -1,13 +1,17 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
-import { students, healthRecords, schools } from '../db/schema.js';
-import { authMiddleware } from '../middleware/auth.js';
-import { eq, inArray } from 'drizzle-orm';
+import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
+import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { eq, inArray, desc } from 'drizzle-orm';
 import {
   EXCEL_COLUMN_MAP,
   EXCEL_DATA_START_ROW,
   EXCEL_TEMPLATE_LAST_ROW,
   EXCEL_SHEET_NAME,
+  MH_REVERSE_QUESTION_NUMBERS,
+  MH_SCALE_MAX,
+  computeNormalizedMhTotal,
+  normalizeItemScore,
 } from '@wish2care/shared';
 import path from 'path';
 import fs from 'fs';
@@ -21,6 +25,122 @@ function genderLabel(g: string | null | undefined): string {
   if (g === 'F') return 'Female';
   return g || '';
 }
+
+/**
+ * Mental health export with reverse-coded item scores.
+ * Does not change stored totals — only the spreadsheet uses New Score = (scaleMax + 1) − original.
+ */
+exportRoutes.post('/mental-health', requireAdmin, async (c) => {
+  try {
+    const ExcelJS = (await import('exceljs')).default;
+    const body = await c.req.json().catch(() => ({}));
+    const schoolId = body.schoolId ? Number(body.schoolId) : undefined;
+
+    const studentQuery = db
+      .select({
+        student: students,
+        school: schools,
+      })
+      .from(students)
+      .leftJoin(schools, eq(schools.id, students.schoolId))
+      .$dynamic();
+
+    const studentRows = schoolId
+      ? await studentQuery.where(eq(students.schoolId, schoolId))
+      : await studentQuery;
+
+    if (studentRows.length === 0) {
+      return c.json({ success: false, error: 'No students found to export' }, 404);
+    }
+
+    const studentIds = studentRows.map((r) => r.student.id);
+    const assessments = await db
+      .select()
+      .from(studentMentalHealthAssessments)
+      .where(inArray(studentMentalHealthAssessments.studentId, studentIds))
+      .orderBy(desc(studentMentalHealthAssessments.createdAt));
+
+    const latestByStudent = new Map<number, (typeof assessments)[number]>();
+    for (const row of assessments) {
+      if (!latestByStudent.has(row.studentId)) {
+        latestByStudent.set(row.studentId, row);
+      }
+    }
+
+    const exportRows = studentRows.filter((r) => latestByStudent.has(r.student.id));
+    if (exportRows.length === 0) {
+      return c.json({ success: false, error: 'No mental health assessments found to export' }, 404);
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const notes = workbook.addWorksheet('Scoring Notes');
+    notes.getColumn(1).width = 28;
+    notes.getColumn(2).width = 90;
+    notes.addRow(['Wish2Care Mental Health Export — Normalized scores']);
+    notes.addRow([]);
+    notes.addRow(['In-app scoring', 'Unchanged. Stored total is the sum of raw 1–5 responses.']);
+    notes.addRow([
+      'Export scoring',
+      `Reverse-coded items use New Score = (${MH_SCALE_MAX} + 1) − Original Score. Example: 1→5, 5→1.`,
+    ]);
+    notes.addRow(['Reverse-coded questions', MH_REVERSE_QUESTION_NUMBERS.join(', ')]);
+    notes.addRow([
+      'Normalized total',
+      'Sum of all 30 item scores after reverse-coding those questions. Range 30–150.',
+    ]);
+
+    const sheet = workbook.addWorksheet('Mental Health Normalized');
+    const headers = [
+      'Student Code',
+      'Name',
+      'School',
+      'Age',
+      'Gender',
+      'Assessment Date',
+      ...Array.from({ length: 30 }, (_, i) => {
+        const n = i + 1;
+        const tag = MH_REVERSE_QUESTION_NUMBERS.includes(n) ? ' (R)' : '';
+        return `Q${n}${tag}`;
+      }),
+      'Original Total (stored)',
+      'Normalized Total',
+    ];
+    sheet.addRow(headers);
+    sheet.getRow(1).font = { bold: true };
+
+    for (const { student, school } of exportRows) {
+      const assessment = latestByStudent.get(student.id)!;
+      const responses = (assessment.responses || {}) as Record<string, number>;
+      const itemScores = Array.from({ length: 30 }, (_, i) => normalizeItemScore(i, responses[`q${i}`]));
+      sheet.addRow([
+        student.studentCode,
+        student.name,
+        school?.name || '',
+        student.age,
+        genderLabel(student.gender),
+        assessment.date,
+        ...itemScores,
+        assessment.totalScore,
+        computeNormalizedMhTotal(responses),
+      ]);
+    }
+
+    headers.forEach((_, i) => {
+      sheet.getColumn(i + 1).width = i < 6 ? 18 : 12;
+    });
+    sheet.getColumn(2).width = 28;
+    sheet.getColumn(3).width = 32;
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return c.body(buffer, 200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="Wish2Care_MH_Normalized.xlsx"',
+    });
+  } catch (err: any) {
+    console.error('Mental health export error:', err);
+    return c.json({ success: false, error: err.message }, 500);
+  }
+});
 
 exportRoutes.post('/', async (c) => {
   try {
