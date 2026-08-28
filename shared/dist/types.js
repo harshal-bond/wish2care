@@ -53,7 +53,7 @@ export const SCREENING_SECTIONS = [
             { key: 'chronicDisease', label: 'Chronic Disease' },
             { key: 'frequentFever', label: 'Frequent Fever' },
             { key: 'weightLoss', label: 'Weight Loss' },
-            { key: 'poorAppetite', label: 'Poor Appetite' },
+            { key: 'poorAppetite', label: 'Appetite' },
             { key: 'repeatedInfection', label: 'Repeated Infection' },
             { key: 'hospitalisation', label: 'Hospitalisation' },
             { key: 'medication', label: 'Medication' },
@@ -127,5 +127,15 @@ export function isRecordComplete(record) {
     if (record.assessmentComplete === true)
         return true;
     return countCompletedDomains(record) === 8;
+}
+export function buildStudentListStatus(record, mentalAssessmentComplete) {
+    const completedDomains = record ? countCompletedDomains(record) : 0;
+    const screeningComplete = record ? isRecordComplete(record) : false;
+    return {
+        completedDomains,
+        screeningComplete,
+        mentalAssessmentComplete,
+        isComplete: screeningComplete,
+    };
 }
 //# sourceMappingURL=types.js.map

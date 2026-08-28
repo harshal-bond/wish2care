@@ -4,6 +4,7 @@ import { fetchApi } from '../lib/api';
 import { Card, Button } from '../components/ui';
 import { ChevronLeft, Loader2, FileText, Smile, User, Heart, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatGender, formatAge } from '@wish2care/shared';
 
 export function StudentProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -61,7 +62,7 @@ export function StudentProfilePage() {
             <h1 className="text-2xl font-bold text-gray-950 mt-1 leading-none">{student.name}</h1>
             <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-2">
               <User className="w-3.5 h-3.5" />
-              {student.age} yrs • {student.gender === 'M' ? 'Male' : 'Female'} • {student.school?.name}
+              {formatAge(student.age)} • {formatGender(student.gender)} • {student.school?.name}
             </p>
           </div>
         </div>
@@ -72,13 +73,6 @@ export function StudentProfilePage() {
           >
             <Activity className="w-4 h-4 mr-2" />
             {healthRecord ? 'Edit Health Record' : 'Add Health Record'}
-          </Button>
-          <Button 
-            onClick={() => navigate(`/students/${studentId}/mental-health`)}
-            className="rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-          >
-            <Smile className="w-4 h-4 mr-2" />
-            Take Mental Health Test
           </Button>
         </div>
       </div>
@@ -165,25 +159,33 @@ export function StudentProfilePage() {
                 </Button>
               </div>
             ) : (
-              mhAssessments.map((assessment: any, idx: number) => (
-                <motion.div 
-                  initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
-                  key={assessment.id} 
-                  className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">Assessment #{mhAssessments.length - idx}</p>
-                      <p className="text-xs text-gray-500">{new Date(assessment.date).toLocaleDateString()}</p>
+              <>
+                {mhAssessments.map((assessment: any, idx: number) => (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                    key={assessment.id} 
+                    className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">Assessment #{mhAssessments.length - idx}</p>
+                        <p className="text-xs text-gray-500">{new Date(assessment.date).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Total Score</p>
-                    <p className="text-lg font-bold text-indigo-600">{assessment.totalScore}</p>
-                  </div>
-                </motion.div>
-              ))
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Total Score</p>
+                      <p className="text-lg font-bold text-indigo-600">{assessment.totalScore}</p>
+                    </div>
+                  </motion.div>
+                ))}
+                <Button
+                  onClick={() => navigate(`/students/${studentId}/mental-health`)}
+                  className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Take Another Assessment
+                </Button>
+              </>
             )}
           </div>
         </Card>

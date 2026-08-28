@@ -7,6 +7,7 @@ import {
   healthRecordPartialSchema,
   YES_NO,
   YES_PARTIAL_NO,
+  APPETITE_OPTIONS,
   BREAKFAST_OPTIONS,
   FRUIT_INTAKE_OPTIONS,
   VEGETABLES_OPTIONS,
@@ -28,6 +29,9 @@ import {
   getMissingFieldsForSection,
   computeScreeningScores,
   computeBpClass,
+  normalizeAppetiteValue,
+  formatGender,
+  formatAge,
   type HealthRecord,
 } from '@wish2care/shared';
 import type { HealthRecordPartial, MissingSectionFields } from '@wish2care/shared';
@@ -84,6 +88,9 @@ const STEP_SECTION_ID: Record<number, string> = {
   9: 'G',
 };
 
+/** Sections that block Next navigation (A through D only). */
+const REQUIRED_SECTION_IDS = new Set(['A', 'BP', 'B', 'C', 'D']);
+
 type FormControl = ReturnType<typeof useForm<HealthRecordPartial>>['control'];
 type FormSetValue = ReturnType<typeof useForm<HealthRecordPartial>>['setValue'];
 type FormRegister = ReturnType<typeof useForm<HealthRecordPartial>>['register'];
@@ -116,6 +123,7 @@ function FieldSelect({
             onChange={field.onChange}
             placeholder="Select..."
             error={error}
+            searchable={options.length > 5}
           />
         )}
       />
@@ -132,6 +140,7 @@ function YesNoFieldWithRemarks({
   setValue,
   options = YES_NO,
   error,
+  remarksWhen = 'Yes',
 }: {
   label: string;
   name: keyof HealthRecordPartial;
@@ -139,10 +148,11 @@ function YesNoFieldWithRemarks({
   setValue: FormSetValue;
   options?: readonly string[];
   error?: boolean;
+  remarksWhen?: string;
 }) {
   const answer = useWatch({ control, name });
   const remarksMap = useWatch({ control, name: 'yesNoRemarks' }) || {};
-  const showRemarks = answer === 'Yes';
+  const showRemarks = answer === remarksWhen;
   const remarkKey = String(name);
 
   return (
@@ -159,7 +169,7 @@ function YesNoFieldWithRemarks({
             value={field.value as string | null | undefined}
             onChange={(val) => {
               field.onChange(val);
-              if (val !== 'Yes') {
+              if (val !== remarksWhen) {
                 const next = { ...(remarksMap as Record<string, string>) };
                 delete next[remarkKey];
                 setValue('yesNoRemarks', Object.keys(next).length ? next : null, {
@@ -169,6 +179,7 @@ function YesNoFieldWithRemarks({
             }}
             placeholder="Select..."
             error={error}
+            searchable={false}
           />
         )}
       />
@@ -278,7 +289,7 @@ export function StudentFormPage() {
 
   const validateStep = (stepId: number): boolean => {
     const sectionId = STEP_SECTION_ID[stepId];
-    if (!sectionId) {
+    if (!sectionId || !REQUIRED_SECTION_IDS.has(sectionId)) {
       setIncompleteKeys(new Set());
       setSectionBlockMessage(null);
       return true;
@@ -309,6 +320,7 @@ export function StudentFormPage() {
     form.reset({
       ...(hr || {}),
       studentId,
+      poorAppetite: normalizeAppetiteValue(hr?.poorAppetite),
       yesNoRemarks: hr?.yesNoRemarks || {},
       assessmentComplete: hr?.assessmentComplete === true,
     });
@@ -322,7 +334,7 @@ export function StudentFormPage() {
     setIncompleteKeys((prev) => {
       if (prev.size === 0) return prev;
       const sectionId = STEP_SECTION_ID[activeStep];
-      if (!sectionId) return prev;
+      if (!sectionId || !REQUIRED_SECTION_IDS.has(sectionId)) return prev;
       const stillMissing = getMissingFieldsForSection(
         sectionId,
         (watched || {}) as Partial<HealthRecord>
@@ -365,6 +377,7 @@ export function StudentFormPage() {
   const today = new Date().toISOString().split('T')[0];
 
   const handleNext = async () => {
+    if (isSaving) return;
     if (!validateStep(activeStep)) return;
     const saved = await forceSave();
     if (!saved && form.formState.isDirty) return;
@@ -372,6 +385,7 @@ export function StudentFormPage() {
   };
 
   const handlePrev = async () => {
+    if (isSaving) return;
     await forceSave();
     setIncompleteKeys(new Set());
     setSectionBlockMessage(null);
@@ -379,6 +393,7 @@ export function StudentFormPage() {
   };
 
   const goToStep = async (targetStep: number) => {
+    if (isSaving) return;
     if (targetStep === activeStep) return;
     // Allow revisiting earlier steps; gate forward jumps through current section
     if (targetStep > activeStep && !validateStep(activeStep)) return;
@@ -446,7 +461,7 @@ export function StudentFormPage() {
 
   const stepIncomplete = (stepId: number) => {
     const sectionId = STEP_SECTION_ID[stepId];
-    if (!sectionId) return false;
+    if (!sectionId || !REQUIRED_SECTION_IDS.has(sectionId)) return false;
     return getMissingFieldsForSection(sectionId, (watched || {}) as Partial<HealthRecord>).length > 0;
   };
 
@@ -457,6 +472,15 @@ export function StudentFormPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-32">
+      {isSaving && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-950/40 backdrop-blur-[2px]">
+          <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-10 py-8 shadow-xl border border-red-100">
+            <Loader2 className="h-10 w-10 animate-spin text-red-600" />
+            <p className="text-lg font-bold text-red-600">Saving… Please wait</p>
+            <p className="text-sm text-gray-500">Do not tap Next until save completes</p>
+          </div>
+        </div>
+      )}
       {showMissingConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/50 backdrop-blur-sm">
           <motion.div
@@ -568,7 +592,7 @@ export function StudentFormPage() {
             </span>
             <h1 className="text-2xl font-bold text-gray-950 mt-1 leading-none">{student.name}</h1>
             <p className="text-xs text-gray-500 mt-1.5">
-              {student.age} yrs • {student.gender === 'M' ? 'Male' : 'Female'} • {student.school?.name}
+              {formatAge(student.age)} • {formatGender(student.gender)} • {student.school?.name}
             </p>
           </div>
         </div>
@@ -617,6 +641,7 @@ export function StudentFormPage() {
               <button
                 key={step.id}
                 type="button"
+                disabled={isSaving}
                 onClick={() => void goToStep(step.id)}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold whitespace-nowrap text-left transition-all duration-150 shrink-0 w-full',
@@ -665,7 +690,7 @@ export function StudentFormPage() {
                           ['Full Name', student.name],
                           ['Student Code', student.studentCode],
                           ['School', student.school?.name],
-                          ['Gender & Age', `${student.gender === 'M' ? 'Male' : 'Female'} • ${student.age} years`],
+                          ['Gender & Age', `${formatGender(student.gender)} • ${student.age ?? '—'} years`],
                           ['Date of Birth', student.dateOfBirth || '—'],
                           ['Blood Group', student.bloodGroup || '—'],
                           ['Parent / Nominee', student.nomineeName || '—'],
@@ -769,7 +794,7 @@ export function StudentFormPage() {
                         <YesNoFieldWithRemarks label="Chronic Disease" name="chronicDisease" control={form.control} setValue={form.setValue} error={isFieldMissing('chronicDisease')} />
                         <YesNoFieldWithRemarks label="Frequent Fever" name="frequentFever" control={form.control} setValue={form.setValue} error={isFieldMissing('frequentFever')} />
                         <YesNoFieldWithRemarks label="Weight Loss" name="weightLoss" control={form.control} setValue={form.setValue} error={isFieldMissing('weightLoss')} />
-                        <YesNoFieldWithRemarks label="Poor Appetite" name="poorAppetite" control={form.control} setValue={form.setValue} error={isFieldMissing('poorAppetite')} />
+                        <YesNoFieldWithRemarks label="Appetite" name="poorAppetite" control={form.control} setValue={form.setValue} options={APPETITE_OPTIONS} remarksWhen="Poor" error={isFieldMissing('poorAppetite')} />
                         <YesNoFieldWithRemarks label="Repeated Infection" name="repeatedInfection" control={form.control} setValue={form.setValue} error={isFieldMissing('repeatedInfection')} />
                         <YesNoFieldWithRemarks label="Hospitalisation" name="hospitalisation" control={form.control} setValue={form.setValue} error={isFieldMissing('hospitalisation')} />
                         <YesNoFieldWithRemarks label="Medication" name="medication" control={form.control} setValue={form.setValue} error={isFieldMissing('medication')} />
@@ -936,7 +961,7 @@ export function StudentFormPage() {
                     type="button"
                     variant="outline"
                     onClick={handlePrev}
-                    disabled={activeStep === 1}
+                    disabled={activeStep === 1 || isSaving}
                     className="rounded-xl border-gray-200 font-semibold"
                   >
                     Back
@@ -946,6 +971,7 @@ export function StudentFormPage() {
                     <Button
                       type="button"
                       onClick={handleNext}
+                      disabled={isSaving}
                       className="rounded-xl font-bold bg-gray-950 hover:bg-gray-800 text-white flex items-center"
                     >
                       Next

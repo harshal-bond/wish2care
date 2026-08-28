@@ -15,6 +15,8 @@ interface SearchableSelectProps {
   disabled?: boolean;
   className?: string;
   error?: boolean;
+  /** When false, or when options.length <= 5, no search input (avoids mobile keyboard). */
+  searchable?: boolean;
 }
 
 export function SearchableSelect({
@@ -25,13 +27,13 @@ export function SearchableSelect({
   disabled = false,
   className,
   error = false,
+  searchable,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Normalize options to { value, label } format
-  const normalizedOptions: Option[] = Array.isArray(options) 
+  const normalizedOptions: Option[] = Array.isArray(options)
     ? (options as any[]).map((opt) => {
         if (typeof opt === 'string') {
           return { value: opt, label: opt };
@@ -40,9 +42,9 @@ export function SearchableSelect({
       })
     : [];
 
+  const showSearch = searchable ?? normalizedOptions.length > 5;
   const selectedOption = normalizedOptions.find((opt) => opt.value === value);
 
-  // Close when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -53,9 +55,11 @@ export function SearchableSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredOptions = normalizedOptions.filter((opt) =>
-    opt.label.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOptions = showSearch
+    ? normalizedOptions.filter((opt) =>
+        opt.label.toLowerCase().includes(search.toLowerCase())
+      )
+    : normalizedOptions;
 
   return (
     <div ref={containerRef} className={cn('relative w-full', className)}>
@@ -77,18 +81,20 @@ export function SearchableSelect({
 
       {isOpen && (
         <div className="absolute z-50 mt-2 max-h-60 w-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl animate-in fade-in duration-100">
-          <div className="flex items-center border-b border-gray-100 px-3 py-2 bg-gray-50/50">
-            <Search className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 w-full border-0 bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0"
-              autoFocus
-            />
-          </div>
-          <div className="max-h-48 overflow-y-auto py-1">
+          {showSearch && (
+            <div className="flex items-center border-b border-gray-100 px-3 py-2 bg-gray-50/50">
+              <Search className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 w-full border-0 bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0"
+                autoFocus
+              />
+            </div>
+          )}
+          <div className={cn('overflow-y-auto py-1', showSearch ? 'max-h-48' : 'max-h-60')}>
             {filteredOptions.length === 0 ? (
               <div className="px-4 py-2 text-sm text-gray-500">No results found.</div>
             ) : (

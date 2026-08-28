@@ -8,21 +8,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { AddStudentModal } from '../components/forms/AddStudentModal';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { nameMatchesQuery, formatGender, formatAge } from '@wish2care/shared';
+import { StudentStatusBadges } from '../components/StudentStatusBadges';
 
 type StatusFilter = 'complete' | 'in_progress' | 'not_started';
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
-  complete: 'Fully Complete',
+  complete: 'Screening Complete',
   in_progress: 'In Progress',
   not_started: 'Not Started',
 };
 
 function matchesStatus(student: any, status: StatusFilter) {
-  const isComplete = !!student._status?.isComplete;
+  const screeningComplete = !!(student._status?.screeningComplete ?? student._status?.isComplete);
   const domains = student._status?.completedDomains ?? 0;
-  if (status === 'complete') return isComplete;
-  if (status === 'in_progress') return !isComplete && domains > 0;
-  return !isComplete && domains === 0;
+  if (status === 'complete') return screeningComplete;
+  if (status === 'in_progress') return !screeningComplete && domains > 0;
+  return !screeningComplete && domains === 0;
 }
 
 export function StudentsPage() {
@@ -39,30 +41,32 @@ export function StudentsPage() {
       ? rawStatus
       : null;
 
-  // Load the school-scoped list once; filter locally so typing stays snappy
+  const deferredSearch = useDeferredValue(useDebouncedValue(searchTerm, 150));
+  const q = deferredSearch.trim();
+  const serverSearch = q.length >= 2 ? q : '';
+
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['students'],
-    queryFn: () => fetchApi('/students'),
+    queryKey: ['students', serverSearch],
+    queryFn: () =>
+      fetchApi(serverSearch ? `/students/summary?search=${encodeURIComponent(serverSearch)}` : '/students/summary'),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
-  const deferredSearch = useDeferredValue(useDebouncedValue(searchTerm, 150));
-  const q = deferredSearch.trim().toLowerCase();
-
   const students = useMemo(() => {
     let list = data?.data || [];
     if (statusFilter) {
       list = list.filter((s: any) => matchesStatus(s, statusFilter));
     }
-    if (!q) return list;
+    if (serverSearch || !q) return list;
+    const lower = q.toLowerCase();
     return list.filter(
       (s: { name?: string; studentCode?: string }) =>
-        s.name?.toLowerCase().includes(q) || s.studentCode?.toLowerCase().includes(q)
+        nameMatchesQuery(s.name, q) || s.studentCode?.toLowerCase().includes(lower)
     );
-  }, [data?.data, q, statusFilter]);
+  }, [data?.data, q, serverSearch, statusFilter]);
 
   const clearStatusFilter = () => {
     const next = new URLSearchParams(searchParams);
@@ -163,22 +167,7 @@ export function StudentsPage() {
                             {student.studentCode}
                           </span>
                           
-                          {student._status.isComplete ? (
-                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                              Complete
-                            </span>
-                          ) : (student._status.completedDomains ?? 0) > 0 ? (
-                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-600">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
-                              {student._status.completedDomains}/8 In Progress
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
-                              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5"></span>
-                              Not Started
-                            </span>
-                          )}
+                          <StudentStatusBadges status={student._status} />
                         </div>
 
                         {/* Name + School Info */}
@@ -195,10 +184,10 @@ export function StudentsPage() {
                         {/* Demographic details */}
                         <div className="flex gap-4 text-xs font-medium text-gray-500 pt-1">
                           <div>
-                            <span className="text-gray-400">Gender:</span> {student.gender === 'M' ? 'Male' : 'Female'}
+                            <span className="text-gray-400">Gender:</span> {formatGender(student.gender)}
                           </div>
                           <div>
-                            <span className="text-gray-400">Age:</span> {student.age} yrs
+                            <span className="text-gray-400">Age:</span> {formatAge(student.age)}
                           </div>
                         </div>
                       </div>

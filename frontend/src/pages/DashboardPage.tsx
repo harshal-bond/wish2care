@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { AddStudentModal } from '../components/forms/AddStudentModal';
 import { Button } from '../components/ui';
+import { nameMatchesQuery } from '@wish2care/shared';
+import { screeningStatusLabel, StudentStatusBadges } from '../components/StudentStatusBadges';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -18,8 +20,8 @@ export function DashboardPage() {
   const navigate = useNavigate();
   
   const { data, isLoading } = useQuery({
-    queryKey: ['students'],
-    queryFn: () => fetchApi('/students'),
+    queryKey: ['students', ''],
+    queryFn: () => fetchApi('/students/summary'),
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -37,15 +39,17 @@ export function DashboardPage() {
   }
 
   const students = data?.data || [];
-  const completed = students.filter((s: any) => s._status?.isComplete).length;
+  const completed = students.filter((s: any) => s._status?.screeningComplete ?? s._status?.isComplete).length;
   const inProgress = students.filter(
-    (s: any) => !s._status?.isComplete && (s._status?.completedDomains ?? 0) > 0
+    (s: any) =>
+      !(s._status?.screeningComplete ?? s._status?.isComplete) &&
+      (s._status?.completedDomains ?? 0) > 0
   ).length;
   const pending = students.length - completed - inProgress;
   const progress = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
 
   const filteredStudents = students.filter((student: any) =>
-    student.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+    nameMatchesQuery(student.name, deferredSearch) ||
     student.studentCode.toLowerCase().includes(deferredSearch.toLowerCase())
   ).slice(0, 4);
 
@@ -69,7 +73,7 @@ export function DashboardPage() {
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{greet}, {user?.name.split(' ')[0]}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{greet}, Wish2Care</h1>
           <p className="text-gray-500 mt-1 flex items-center gap-1.5 text-sm">
             <Calendar className="h-4 w-4" />
             {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -215,7 +219,7 @@ export function DashboardPage() {
 
                 <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                   <span className="text-xs text-gray-500 font-medium">
-                    {lastEditedStudent._status.isComplete ? 'Complete' : `${lastEditedStudent._status.completedDomains}/8 Sections Filled`}
+                    {screeningStatusLabel(lastEditedStudent._status)}
                   </span>
                   <Link 
                     to={`/students/${lastEditedStudent.id}`}
@@ -260,15 +264,7 @@ export function DashboardPage() {
                     </p>
                   </div>
                   <div className="shrink-0 flex items-center gap-3">
-                    {student._status.isComplete ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
-                        Complete
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
-                        {student._status.completedDomains}/8 Sections
-                      </span>
-                    )}
+                    <StudentStatusBadges status={student._status} />
                     <ArrowRight className="h-4 w-4 text-gray-400" />
                   </div>
                 </Link>

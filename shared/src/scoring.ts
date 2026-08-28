@@ -282,7 +282,7 @@ export function computeUndernutritionRiskScore(
   if (nutritionScore == null) return null;
   let risk = 100 - nutritionScore;
   if (weightLoss === 'Yes') risk += 15;
-  if (poorAppetite === 'Yes') risk += 15;
+  if (poorAppetite === 'Poor' || poorAppetite === 'Yes') risk += 15;
   if (muac != null && muac < MUAC_SEVERE_THRESHOLD) risk += 20;
   return Math.round(Math.min(100, Math.max(0, risk)));
 }

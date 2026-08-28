@@ -10,6 +10,9 @@ export type YesNo = (typeof YES_NO)[number];
 export const YES_PARTIAL_NO = ['Yes', 'Partial', 'No'] as const;
 export type YesPartialNo = (typeof YES_PARTIAL_NO)[number];
 
+export const APPETITE_OPTIONS = ['Good', 'Poor'] as const;
+export type Appetite = (typeof APPETITE_OPTIONS)[number];
+
 // ── Gender ─────────────────────────────────────────────────────────────
 export const GENDER_OPTIONS = ['M', 'F'] as const;
 export type Gender = (typeof GENDER_OPTIONS)[number];
@@ -91,7 +94,7 @@ export const SCORING_POINTS = {
   chronicDisease: { No: 5, Yes: 0 },
   frequentFever: { No: 5, Yes: 0 },
   weightLoss: { No: 5, Yes: 0 },
-  poorAppetite: { No: 5, Yes: 0 },
+  poorAppetite: { Good: 5, Poor: 0, No: 5, Yes: 0 },
   repeatedInfection: { No: 5, Yes: 0 },
   hospitalisation: { No: 5, Yes: 0 },
   medication: { No: 5, Yes: 0 },

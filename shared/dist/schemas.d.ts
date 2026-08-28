@@ -271,7 +271,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     medication: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     stress: z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Low", "Moderate", "High"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Low" | "Moderate" | "High" | null, "" | "Low" | "Moderate" | "High" | null | undefined>;
     mood: z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Happy", "Neutral", "Low"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Low" | "Happy" | "Neutral" | null, "" | "Low" | "Happy" | "Neutral" | null | undefined>;
-    concentration: z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>;
+    concentration: z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Poor" | "Average" | null, "" | "Good" | "Poor" | "Average" | null | undefined>;
     bullying: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     pallor: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     dentalCaries: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
@@ -282,7 +282,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     clubbing: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     vaccinationComplete: z.ZodNullable<z.ZodOptional<z.ZodType<YesPartialNoVal, z.ZodTypeDef, unknown>>>;
     deworming: z.ZodNullable<z.ZodOptional<z.ZodType<YesPartialNoVal, z.ZodTypeDef, unknown>>>;
-    handHygiene: z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>;
+    handHygiene: z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Poor" | "Average" | null, "" | "Good" | "Poor" | "Average" | null | undefined>;
     dentalCheckup: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     visionScreening: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     /** Remarks keyed by Yes/No field name — only used when that answer is Yes */
@@ -315,8 +315,8 @@ export declare const healthRecordSchema: z.ZodObject<{
     alcohol: "Never" | "Occasional" | "Regular" | "Not Applicable" | null;
     stress: "Low" | "Moderate" | "High" | null;
     mood: "Low" | "Happy" | "Neutral" | null;
-    concentration: "Good" | "Average" | "Poor" | null;
-    handHygiene: "Good" | "Average" | "Poor" | null;
+    concentration: "Good" | "Poor" | "Average" | null;
+    handHygiene: "Good" | "Poor" | "Average" | null;
     yesNoRemarks: Record<string, string> | null;
     chronicDisease?: YesNoVal | undefined;
     frequentFever?: YesNoVal | undefined;
@@ -384,8 +384,8 @@ export declare const healthRecordSchema: z.ZodObject<{
     alcohol?: "" | "Never" | "Occasional" | "Regular" | "Not Applicable" | null | undefined;
     stress?: "" | "Low" | "Moderate" | "High" | null | undefined;
     mood?: "" | "Low" | "Happy" | "Neutral" | null | undefined;
-    concentration?: "" | "Good" | "Average" | "Poor" | null | undefined;
-    handHygiene?: "" | "Good" | "Average" | "Poor" | null | undefined;
+    concentration?: "" | "Good" | "Poor" | "Average" | null | undefined;
+    handHygiene?: "" | "Good" | "Poor" | "Average" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
 }>;
 export declare const healthRecordPartialSchema: z.ZodObject<{
@@ -434,8 +434,8 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     alcohol: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Never", "Occasional", "Regular", "Not Applicable"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Never" | "Occasional" | "Regular" | "Not Applicable" | null, "" | "Never" | "Occasional" | "Regular" | "Not Applicable" | null | undefined>>;
     stress: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Low", "Moderate", "High"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Low" | "Moderate" | "High" | null, "" | "Low" | "Moderate" | "High" | null | undefined>>;
     mood: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Happy", "Neutral", "Low"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Low" | "Happy" | "Neutral" | null, "" | "Low" | "Happy" | "Neutral" | null | undefined>>;
-    concentration: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>>;
-    handHygiene: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Average" | "Poor" | null, "" | "Good" | "Average" | "Poor" | null | undefined>>;
+    concentration: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Poor" | "Average" | null, "" | "Good" | "Poor" | "Average" | null | undefined>>;
+    handHygiene: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodEnum<["Good", "Average", "Poor"]>, z.ZodLiteral<"">, z.ZodNull, z.ZodUndefined]>, "Good" | "Poor" | "Average" | null, "" | "Good" | "Poor" | "Average" | null | undefined>>;
     yesNoRemarks: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodRecord<z.ZodString, z.ZodString>, z.ZodNull, z.ZodUndefined]>, Record<string, string> | null, Record<string, string> | null | undefined>>;
 }, "strip", z.ZodTypeAny, {
     studentId: number;
@@ -483,8 +483,8 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     alcohol?: "Never" | "Occasional" | "Regular" | "Not Applicable" | null | undefined;
     stress?: "Low" | "Moderate" | "High" | null | undefined;
     mood?: "Low" | "Happy" | "Neutral" | null | undefined;
-    concentration?: "Good" | "Average" | "Poor" | null | undefined;
-    handHygiene?: "Good" | "Average" | "Poor" | null | undefined;
+    concentration?: "Good" | "Poor" | "Average" | null | undefined;
+    handHygiene?: "Good" | "Poor" | "Average" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
 }, {
     studentId: number;
@@ -532,8 +532,8 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     alcohol?: "" | "Never" | "Occasional" | "Regular" | "Not Applicable" | null | undefined;
     stress?: "" | "Low" | "Moderate" | "High" | null | undefined;
     mood?: "" | "Low" | "Happy" | "Neutral" | null | undefined;
-    concentration?: "" | "Good" | "Average" | "Poor" | null | undefined;
-    handHygiene?: "" | "Good" | "Average" | "Poor" | null | undefined;
+    concentration?: "" | "Good" | "Poor" | "Average" | null | undefined;
+    handHygiene?: "" | "Good" | "Poor" | "Average" | null | undefined;
     yesNoRemarks?: Record<string, string> | null | undefined;
 }>;
 export declare const exportRequestSchema: z.ZodObject<{

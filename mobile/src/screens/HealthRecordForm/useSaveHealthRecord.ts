@@ -1,16 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HealthRecord, HealthRecordPartial, Student } from '@wish2care/shared';
-import { countCompletedDomains, isRecordComplete } from '@wish2care/shared';
+import { buildStudentListStatus } from '@wish2care/shared';
 import { HEALTH_RECORD_SAVE_MUTATION_KEY, saveHealthRecordMutationFn } from '../../lib/queryClient';
 
 type StudentWithRecord = Student & { healthRecord: HealthRecord | null };
-type StudentWithStatus = Student & { _status: { completedDomains: number; isComplete: boolean } };
+type StudentWithStatus = Student & { _status: ReturnType<typeof buildStudentListStatus> };
 
-function deriveStatus(record: Partial<HealthRecord> | null) {
-  return {
-    completedDomains: record ? countCompletedDomains(record) : 0,
-    isComplete: record ? isRecordComplete(record) : false,
-  };
+function deriveStatus(record: Partial<HealthRecord> | null, mentalAssessmentComplete = false) {
+  return buildStudentListStatus(record, mentalAssessmentComplete);
 }
 
 export function useSaveHealthRecord(studentId: number) {
@@ -34,7 +31,14 @@ export function useSaveHealthRecord(studentId: number) {
       if (previousList) {
         queryClient.setQueryData(
           ['students'],
-          previousList.map((item) => (item.id === studentId ? { ...item, _status: deriveStatus(mergedRecord) } : item))
+          previousList.map((item) =>
+            item.id === studentId
+              ? {
+                  ...item,
+                  _status: deriveStatus(mergedRecord, item._status?.mentalAssessmentComplete ?? false),
+                }
+              : item
+          )
         );
       }
 
@@ -56,7 +60,14 @@ export function useSaveHealthRecord(studentId: number) {
         prev ? { ...prev, healthRecord: record } : prev
       );
       queryClient.setQueryData(['students'], (prev: StudentWithStatus[] | undefined) =>
-        prev?.map((item) => (item.id === studentId ? { ...item, _status: deriveStatus(record) } : item))
+        prev?.map((item) =>
+          item.id === studentId
+            ? {
+                ...item,
+                _status: deriveStatus(record, item._status?.mentalAssessmentComplete ?? false),
+              }
+            : item
+        )
       );
     },
   });

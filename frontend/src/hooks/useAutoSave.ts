@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { countCompletedDomains, isRecordComplete } from '@wish2care/shared';
+import { buildStudentListStatus } from '@wish2care/shared';
 import { API_URL, fetchApi } from '../lib/api';
 
 export function useAutoSave({
@@ -42,8 +42,6 @@ export function useAutoSave({
       });
 
       // Patch list in place — avoid refetching the full student list on every autosave
-      const completedDomains = countCompletedDomains(savedRecord);
-      const isComplete = isRecordComplete(savedRecord);
       queryClient.setQueryData(['students'], (old: any) => {
         if (!old?.data || !Array.isArray(old.data)) return old;
         return {
@@ -54,7 +52,10 @@ export function useAutoSave({
               : {
                   ...s,
                   healthRecord: { updatedAt: savedRecord.updatedAt },
-                  _status: { completedDomains, isComplete },
+                  _status: buildStudentListStatus(
+                    savedRecord,
+                    s._status?.mentalAssessmentComplete ?? false
+                  ),
                 }
           ),
         };
