@@ -18,8 +18,13 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
       headers,
     });
   } catch {
+    const target = `${API_URL}${endpoint}`;
+    const isLocal =
+      API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
     throw new Error(
-      'Cannot reach the API server. Start the backend with `npm run dev` from the project root.'
+      isLocal
+        ? `Cannot reach the API at ${target}. Other users cannot use localhost — set VITE_API_URL on Vercel to your public Railway API URL (https://…), then redeploy the frontend.`
+        : `Cannot reach the API at ${target}. Check that the Railway backend is running and CORS allows this site's origin.`
     );
   }
 

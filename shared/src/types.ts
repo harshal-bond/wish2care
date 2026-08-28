@@ -270,7 +270,7 @@ export const SCREENING_SECTIONS: Array<{ id: string; title: string; fields: Sect
       { key: 'chronicDisease', label: 'Chronic Disease' },
       { key: 'frequentFever', label: 'Frequent Fever' },
       { key: 'weightLoss', label: 'Weight Loss' },
-      { key: 'poorAppetite', label: 'Poor Appetite' },
+      { key: 'poorAppetite', label: 'Appetite' },
       { key: 'repeatedInfection', label: 'Repeated Infection' },
       { key: 'hospitalisation', label: 'Hospitalisation' },
       { key: 'medication', label: 'Medication' },
@@ -359,4 +359,26 @@ export function countCompletedDomains(record: Partial<HealthRecord>): number {
 export function isRecordComplete(record: Partial<HealthRecord>): boolean {
   if (record.assessmentComplete === true) return true;
   return countCompletedDomains(record) === 8;
+}
+
+export interface StudentListStatus {
+  completedDomains: number;
+  screeningComplete: boolean;
+  mentalAssessmentComplete: boolean;
+  /** @deprecated Use screeningComplete */
+  isComplete: boolean;
+}
+
+export function buildStudentListStatus(
+  record: Partial<HealthRecord> | null | undefined,
+  mentalAssessmentComplete: boolean
+): StudentListStatus {
+  const completedDomains = record ? countCompletedDomains(record) : 0;
+  const screeningComplete = record ? isRecordComplete(record) : false;
+  return {
+    completedDomains,
+    screeningComplete,
+    mentalAssessmentComplete,
+    isComplete: screeningComplete,
+  };
 }

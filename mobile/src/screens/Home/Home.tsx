@@ -11,7 +11,12 @@ import { fonts } from '../../theme/typography';
 import type { RootStackParamList } from '../../navigation/types';
 
 type StudentWithStatus = Student & {
-  _status: { completedDomains: number; isComplete: boolean };
+  _status: {
+    completedDomains: number;
+    screeningComplete: boolean;
+    mentalAssessmentComplete: boolean;
+    isComplete?: boolean;
+  };
 };
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -27,7 +32,7 @@ export function HomeScreen() {
     refetch,
   } = useQuery<StudentWithStatus[]>({
     queryKey: ['students'],
-    queryFn: async () => (await fetchApi('/students'))?.data ?? [],
+    queryFn: async () => (await fetchApi('/students/summary'))?.data ?? [],
   });
 
   // All students in this list share the same school — the backend already
@@ -68,9 +73,13 @@ export function HomeScreen() {
                 <Text style={styles.name}>{item.name}</Text>
                 <Text style={styles.code}>{item.studentCode}</Text>
               </View>
-              <View style={[styles.badge, item._status.isComplete ? styles.badgeComplete : styles.badgePending]}>
-                <Text style={[styles.badgeText, item._status.isComplete ? styles.badgeTextComplete : styles.badgeTextPending]}>
-                  {item._status.isComplete ? 'Complete' : `${item._status.completedDomains}/8`}
+              <View style={[styles.badge, (item._status.screeningComplete ?? item._status.isComplete) ? styles.badgeComplete : styles.badgePending]}>
+                <Text style={[styles.badgeText, (item._status.screeningComplete ?? item._status.isComplete) ? styles.badgeTextComplete : styles.badgeTextPending]}>
+                  {(item._status.screeningComplete ?? item._status.isComplete)
+                    ? item._status.mentalAssessmentComplete
+                      ? 'Complete'
+                      : 'Screening Done'
+                    : `${item._status.completedDomains}/8`}
                 </Text>
               </View>
             </Pressable>

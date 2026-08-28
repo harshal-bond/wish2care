@@ -195,5 +195,13 @@ export declare function getMissingScreeningFields(record: Partial<HealthRecord>)
  */
 export declare function countCompletedDomains(record: Partial<HealthRecord>): number;
 export declare function isRecordComplete(record: Partial<HealthRecord>): boolean;
+export interface StudentListStatus {
+    completedDomains: number;
+    screeningComplete: boolean;
+    mentalAssessmentComplete: boolean;
+    /** @deprecated Use screeningComplete */
+    isComplete: boolean;
+}
+export declare function buildStudentListStatus(record: Partial<HealthRecord> | null | undefined, mentalAssessmentComplete: boolean): StudentListStatus;
 export {};
 //# sourceMappingURL=types.d.ts.map

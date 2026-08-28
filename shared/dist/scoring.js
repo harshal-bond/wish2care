@@ -169,7 +169,7 @@ export function computeUndernutritionRiskScore(nutritionScore, weightLoss, poorA
     let risk = 100 - nutritionScore;
     if (weightLoss === 'Yes')
         risk += 15;
-    if (poorAppetite === 'Yes')
+    if (poorAppetite === 'Poor' || poorAppetite === 'Yes')
         risk += 15;
     if (muac != null && muac < MUAC_SEVERE_THRESHOLD)
         risk += 20;

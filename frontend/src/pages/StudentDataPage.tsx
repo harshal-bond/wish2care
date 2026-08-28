@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { fetchApi } from '../lib/api';
+import { nameMatchesQuery, formatGender } from '@wish2care/shared';
 import { Input, Button, Card } from '../components/ui';
 import {
   Search,
@@ -57,8 +58,8 @@ export function StudentDataPage() {
   const filtered = allStudents.filter(student => {
     // Text search
     if (search) {
-      const q = search.toLowerCase();
-      if (!student.name?.toLowerCase().includes(q) && !student.studentCode?.toLowerCase().includes(q)) return false;
+      const q = search.trim();
+      if (!nameMatchesQuery(student.name, q) && !student.studentCode?.toLowerCase().includes(q.toLowerCase())) return false;
     }
     // School filter
     if (schoolFilter !== 'all' && String(student.schoolId) !== schoolFilter) return false;
@@ -241,7 +242,7 @@ export function StudentDataPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900">{student.name}</p>
-                              <p className="text-xs text-gray-400">{student.studentCode} • {student.gender === 'M' ? 'Male' : 'Female'}, {student.age}y</p>
+                              <p className="text-xs text-gray-400">{student.studentCode} • {formatGender(student.gender)}, {student.age}y</p>
                             </div>
                           </div>
                         </td>

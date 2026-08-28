@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchApi } from '../../lib/api';
 import { Input, Button } from '../ui';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v4';
+import { namesLikelySame } from '@wish2care/shared';
 
 // ── Local form schema – plain types, no transforms, avoids shared schema inference issues ──
 const addStudentFormSchema = z.object({
@@ -75,12 +76,22 @@ export function AddStudentModal({
   user: any;
   onSuccess: (studentId: number) => void;
 }) {
+  const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
+  const [pendingSubmit, setPendingSubmit] = useState<FormValues | null>(null);
+
   const { data: schoolsData } = useQuery({
     queryKey: ['schools'],
     queryFn: () => fetchApi('/schools'),
     enabled: isOpen,
   });
 
+  const { data: studentsData } = useQuery({
+    queryKey: ['students', ''],
+    queryFn: () => fetchApi('/students/summary'),
+    enabled: isOpen,
+  });
+
+  const existingStudents: { id: number; name: string; studentCode: string }[] = studentsData?.data || [];
   const schools: { id: number; name: string }[] = schoolsData?.data || [];
   const defaultSchoolId =
     user?.role === 'fieldworker' && user?.assignedSchoolId ? user.assignedSchoolId : undefined;
@@ -127,8 +138,24 @@ export function AddStudentModal({
 
   if (!isOpen) return null;
 
-  const onSubmit = (data: FormValues) => {
+  const submitStudent = (data: FormValues) => {
     addMutation.mutate(data);
+    setPendingSubmit(null);
+    setDuplicateMatches([]);
+  };
+
+  const onSubmit = (data: FormValues) => {
+    const matches = existingStudents.filter((s) => namesLikelySame(s.name, data.name));
+    if (matches.length > 0) {
+      setDuplicateMatches(matches);
+      setPendingSubmit(data);
+      return;
+    }
+    submitStudent(data);
+  };
+
+  const confirmDespiteDuplicates = () => {
+    if (pendingSubmit) submitStudent(pendingSubmit);
   };
 
   return (
@@ -339,6 +366,48 @@ export function AddStudentModal({
               </div>
             </div>
           </form>
+
+          {duplicateMatches.length > 0 && (
+            <div className="mt-6 p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-amber-900">Possible duplicate student</p>
+                  <p className="text-sm text-amber-800 mt-1">
+                    These existing profiles may be the same person:
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                    {duplicateMatches.map((m) => (
+                      <li key={m.id}>
+                        <span className="font-semibold">{m.name}</span> ({m.studentCode})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setDuplicateMatches([]);
+                    setPendingSubmit(null);
+                  }}
+                  className="rounded-xl h-10"
+                >
+                  Review Name
+                </Button>
+                <Button
+                  type="button"
+                  onClick={confirmDespiteDuplicates}
+                  className="rounded-xl h-10 bg-amber-700 hover:bg-amber-800 text-white"
+                  disabled={addMutation.isPending}
+                >
+                  Create Anyway
+                </Button>
+              </div>
+            </div>
+          )}
 
           {addMutation.isError && (
             <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-100">

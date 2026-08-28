@@ -5,6 +5,7 @@
 // ── Yes/No ─────────────────────────────────────────────────────────────
 export const YES_NO = ['Yes', 'No'];
 export const YES_PARTIAL_NO = ['Yes', 'Partial', 'No'];
+export const APPETITE_OPTIONS = ['Good', 'Poor'];
 // ── Gender ─────────────────────────────────────────────────────────────
 export const GENDER_OPTIONS = ['M', 'F'];
 // ── Roles ──────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ export const SCORING_POINTS = {
     chronicDisease: { No: 5, Yes: 0 },
     frequentFever: { No: 5, Yes: 0 },
     weightLoss: { No: 5, Yes: 0 },
-    poorAppetite: { No: 5, Yes: 0 },
+    poorAppetite: { Good: 5, Poor: 0, No: 5, Yes: 0 },
     repeatedInfection: { No: 5, Yes: 0 },
     hospitalisation: { No: 5, Yes: 0 },
     medication: { No: 5, Yes: 0 },

@@ -2,180 +2,149 @@ import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
-import { studentSchema, studentMentalHealthSchema, isRecordComplete, countCompletedDomains } from '@wish2care/shared';
-import { eq, like, ilike, or, and, desc, count } from 'drizzle-orm';
+import {
+  studentSchema,
+  studentMentalHealthSchema,
+  nameMatchesQuery,
+  firstSearchToken,
+  normalizeAppetiteValue,
+} from '@wish2care/shared';
+import { eq, ilike, or, and, desc, count, inArray } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/studentCode.js';
+import { healthRecordStatusSelect, statusFromRow, type HealthRecordStatusRow } from '../lib/studentListStatus.js';
+import { z } from 'zod';
 
 export const studentsRoutes = new Hono();
 
 studentsRoutes.use('/*', authMiddleware);
 
-studentsRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const search = c.req.query('search');
-  const schoolId = c.req.query('schoolId');
+const studentDemographicsSchema = z.object({
+  name: z.string().min(1).optional(),
+  age: z.coerce.number().min(1).max(100).optional(),
+  gender: z.enum(['M', 'F']).optional(),
+});
 
+async function loadMentalHealthStudentIds(studentIds: number[]): Promise<Set<number>> {
+  if (studentIds.length === 0) return new Set();
+  const rows = await db
+    .selectDistinct({ studentId: studentMentalHealthAssessments.studentId })
+    .from(studentMentalHealthAssessments)
+    .where(inArray(studentMentalHealthAssessments.studentId, studentIds));
+  return new Set(rows.map((r) => r.studentId));
+}
+
+function buildListConditions(user: any, search?: string, schoolId?: string) {
   const conditions = [];
 
-  // Role based filtering
   if (user.role === 'fieldworker' && user.assignedSchoolId) {
     conditions.push(eq(students.schoolId, user.assignedSchoolId));
   } else if (schoolId) {
     conditions.push(eq(students.schoolId, parseInt(schoolId, 10)));
   }
 
-  // Search
   if (search) {
-    const searchPattern = `%${search}%`;
-    conditions.push(
-      or(
-        ilike(students.name, searchPattern),
-        ilike(students.studentCode, searchPattern)
-      )
-    );
+    const token = firstSearchToken(search);
+    const searchPattern = `%${search.trim()}%`;
+    if (token) {
+      conditions.push(
+        or(
+          ilike(students.name, `%${token}%`),
+          ilike(students.studentCode, searchPattern)
+        )
+      );
+    } else {
+      conditions.push(ilike(students.studentCode, searchPattern));
+    }
   }
 
+  return conditions.length > 0 ? and(...conditions) : undefined;
+}
+
+function mapStudentListRow(
+  row: { student: typeof students.$inferSelect; school: typeof schools.$inferSelect | null } & HealthRecordStatusRow,
+  mentalIds: Set<number>
+) {
+  const mentalAssessmentComplete = mentalIds.has(row.student.id);
+  const _status = statusFromRow(row, mentalAssessmentComplete);
+  return {
+    ...row.student,
+    school: row.school,
+    healthRecord: row.hrId != null ? { updatedAt: row.updatedAt } : null,
+    _status,
+  };
+}
+
+function applyTokenSearch<T extends { name: string; studentCode: string }>(items: T[], search?: string): T[] {
+  if (!search?.trim()) return items;
+  const q = search.trim();
+  return items.filter(
+    (s) =>
+      nameMatchesQuery(s.name, q) ||
+      s.studentCode.toLowerCase().includes(q.toLowerCase())
+  );
+}
+
+async function queryStudentList(whereClause: ReturnType<typeof and> | undefined, limit?: number) {
+  let query = db
+    .select({
+      student: students,
+      school: schools,
+      ...healthRecordStatusSelect,
+    })
+    .from(students)
+    .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+    .leftJoin(schools, eq(students.schoolId, schools.id))
+    .where(whereClause)
+    .orderBy(students.name)
+    .$dynamic();
+
+  if (limit) query = query.limit(limit);
+
+  return query;
+}
+
+studentsRoutes.get('/summary', async (c) => {
+  const user = c.get('user');
+  const search = c.req.query('search');
+  const schoolId = c.req.query('schoolId');
+
   try {
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const whereClause = buildListConditions(user, search, schoolId);
+    const results = await queryStudentList(whereClause, search ? 200 : undefined);
+    const mentalIds = await loadMentalHealthStudentIds(results.map((r) => r.student.id));
 
-    // Select only screening fields needed for domain counts — not the full wide row
-    let query = db
-      .select({
-        student: students,
-        school: schools,
-        hrId: healthRecords.id,
-        updatedAt: healthRecords.updatedAt,
-        assessmentComplete: healthRecords.assessmentComplete,
-        height: healthRecords.height,
-        weight: healthRecords.weight,
-        muac: healthRecords.muac,
-        waistCircumference: healthRecords.waistCircumference,
-        systolic: healthRecords.systolic,
-        diastolic: healthRecords.diastolic,
-        bpClass: healthRecords.bpClass,
-        randomBloodSugar: healthRecords.randomBloodSugar,
-        breakfast: healthRecords.breakfast,
-        fruitIntake: healthRecords.fruitIntake,
-        vegetables: healthRecords.vegetables,
-        proteinIntake: healthRecords.proteinIntake,
-        junkFood: healthRecords.junkFood,
-        sugaryDrinks: healthRecords.sugaryDrinks,
-        waterIntake: healthRecords.waterIntake,
-        physicalActivity: healthRecords.physicalActivity,
-        screenTime: healthRecords.screenTime,
-        outdoorPlay: healthRecords.outdoorPlay,
-        sleepHours: healthRecords.sleepHours,
-        smoking: healthRecords.smoking,
-        alcohol: healthRecords.alcohol,
-        chronicDisease: healthRecords.chronicDisease,
-        frequentFever: healthRecords.frequentFever,
-        weightLoss: healthRecords.weightLoss,
-        poorAppetite: healthRecords.poorAppetite,
-        repeatedInfection: healthRecords.repeatedInfection,
-        hospitalisation: healthRecords.hospitalisation,
-        medication: healthRecords.medication,
-        stress: healthRecords.stress,
-        mood: healthRecords.mood,
-        concentration: healthRecords.concentration,
-        bullying: healthRecords.bullying,
-        pallor: healthRecords.pallor,
-        dentalCaries: healthRecords.dentalCaries,
-        poorOralHygiene: healthRecords.poorOralHygiene,
-        visionProblem: healthRecords.visionProblem,
-        hairChanges: healthRecords.hairChanges,
-        skinChanges: healthRecords.skinChanges,
-        clubbing: healthRecords.clubbing,
-        vaccinationComplete: healthRecords.vaccinationComplete,
-        deworming: healthRecords.deworming,
-        handHygiene: healthRecords.handHygiene,
-        dentalCheckup: healthRecords.dentalCheckup,
-        visionScreening: healthRecords.visionScreening,
-      })
-      .from(students)
-      .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
-      .leftJoin(schools, eq(students.schoolId, schools.id))
-      .where(whereClause)
-      .orderBy(students.name)
-      .$dynamic();
+    let mapped = results.map((row) => mapStudentListRow(row, mentalIds));
+    mapped = applyTokenSearch(mapped, search);
 
-    // Cap only when searching; full list is needed for accurate dashboard counts
-    if (search) {
-      query = query.limit(200);
-    }
+    const summary = mapped.map((s) => ({
+      id: s.id,
+      name: s.name,
+      studentCode: s.studentCode,
+      age: s.age,
+      gender: s.gender,
+      school: s.school,
+      healthRecord: s.healthRecord,
+      _status: s._status,
+    }));
 
-    const results = await query;
+    return c.json({ success: true, data: summary });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
+  }
+});
 
-    // Slim list payload: identity + status + updatedAt only (full record on GET /:id)
-    const mappedResults = results.map((row) => {
-      if (row.hrId == null) {
-        return {
-          ...row.student,
-          school: row.school,
-          healthRecord: null,
-          _status: { completedDomains: 0, isComplete: false },
-        };
-      }
+studentsRoutes.get('/', async (c) => {
+  const user = c.get('user');
+  const search = c.req.query('search');
+  const schoolId = c.req.query('schoolId');
 
-      const record = {
-        assessmentComplete: row.assessmentComplete === true,
-        height: row.height,
-        weight: row.weight,
-        muac: row.muac,
-        waistCircumference: row.waistCircumference,
-        systolic: row.systolic,
-        diastolic: row.diastolic,
-        bpClass: row.bpClass,
-        randomBloodSugar: row.randomBloodSugar,
-        breakfast: row.breakfast,
-        fruitIntake: row.fruitIntake,
-        vegetables: row.vegetables,
-        proteinIntake: row.proteinIntake,
-        junkFood: row.junkFood,
-        sugaryDrinks: row.sugaryDrinks,
-        waterIntake: row.waterIntake,
-        physicalActivity: row.physicalActivity,
-        screenTime: row.screenTime,
-        outdoorPlay: row.outdoorPlay,
-        sleepHours: row.sleepHours,
-        smoking: row.smoking,
-        alcohol: row.alcohol,
-        chronicDisease: row.chronicDisease,
-        frequentFever: row.frequentFever,
-        weightLoss: row.weightLoss,
-        poorAppetite: row.poorAppetite,
-        repeatedInfection: row.repeatedInfection,
-        hospitalisation: row.hospitalisation,
-        medication: row.medication,
-        stress: row.stress,
-        mood: row.mood,
-        concentration: row.concentration,
-        bullying: row.bullying,
-        pallor: row.pallor,
-        dentalCaries: row.dentalCaries,
-        poorOralHygiene: row.poorOralHygiene,
-        visionProblem: row.visionProblem,
-        hairChanges: row.hairChanges,
-        skinChanges: row.skinChanges,
-        clubbing: row.clubbing,
-        vaccinationComplete: row.vaccinationComplete,
-        deworming: row.deworming,
-        handHygiene: row.handHygiene,
-        dentalCheckup: row.dentalCheckup,
-        visionScreening: row.visionScreening,
-      };
-      const completedDomains = countCompletedDomains(record);
-      const isComplete = isRecordComplete(record);
+  try {
+    const whereClause = buildListConditions(user, search, schoolId);
+    const results = await queryStudentList(whereClause, search ? 200 : undefined);
+    const mentalIds = await loadMentalHealthStudentIds(results.map((r) => r.student.id));
 
-      return {
-        ...row.student,
-        school: row.school,
-        healthRecord: { updatedAt: row.updatedAt },
-        _status: {
-          completedDomains,
-          isComplete,
-        },
-      };
-    });
+    let mappedResults = results.map((row) => mapStudentListRow(row, mentalIds));
+    mappedResults = applyTokenSearch(mappedResults, search);
 
     return c.json({ success: true, data: mappedResults });
   } catch (err: any) {
@@ -200,15 +169,50 @@ studentsRoutes.get('/:id', async (c) => {
   if (rows.length === 0) return c.json({ success: false, error: 'Student not found' }, 404);
   
   const row = rows[0];
+  const hr = row.healthRecord
+    ? {
+        ...row.healthRecord,
+        poorAppetite: normalizeAppetiteValue(row.healthRecord.poorAppetite),
+      }
+    : null;
 
   return c.json({ 
     success: true, 
     data: {
       ...row.student,
       school: row.school || null,
-      healthRecord: row.healthRecord || null,
+      healthRecord: hr,
     }
   });
+});
+
+studentsRoutes.patch('/:id', async (c) => {
+  const id = parseInt(c.req.param('id'), 10);
+  if (isNaN(id)) return c.json({ success: false, error: 'Invalid ID' }, 400);
+
+  try {
+    const body = await c.req.json();
+    const result = studentDemographicsSchema.safeParse(body);
+    if (!result.success) {
+      return c.json({ success: false, error: 'Invalid input', details: result.error.errors }, 400);
+    }
+
+    const updates = result.data;
+    if (Object.keys(updates).length === 0) {
+      return c.json({ success: false, error: 'No fields to update' }, 400);
+    }
+
+    const [student] = await db
+      .update(students)
+      .set(updates)
+      .where(eq(students.id, id))
+      .returning();
+
+    if (!student) return c.json({ success: false, error: 'Student not found' }, 404);
+    return c.json({ success: true, data: student });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
+  }
 });
 
 

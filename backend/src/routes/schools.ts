@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { schools, students, schoolAuditChecklists } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
-import { schoolSchema, schoolAuditChecklistSchema } from '@wish2care/shared';
+import { schoolSchema, schoolAuditChecklistSchema, namesLikelySame } from '@wish2care/shared';
 import { eq, sql, desc, count } from 'drizzle-orm';
 import { generateStudentCode, parseStudentExcel } from '../lib/parseStudentExcel.js';
 
@@ -76,11 +76,26 @@ schoolsRoutes.post('/:id/students/upload', requireAdmin, async (c) => {
       .from(students)
       .where(eq(students.schoolId, schoolId));
 
+    const existingStudents = await db
+      .select({ id: students.id, name: students.name, studentCode: students.studentCode })
+      .from(students)
+      .where(eq(students.schoolId, schoolId));
+
     let imported = 0;
     let skipped = 0;
     let seq = (existingCount ?? 0) + 1;
 
     for (const row of rows) {
+      const duplicateByName = existingStudents.find((s) => namesLikelySame(s.name, row.data.name));
+      if (duplicateByName && duplicateByName.studentCode !== row.data.studentCode?.trim()) {
+        skipped += 1;
+        errors.push({
+          row: row.rowNumber,
+          message: `Duplicate name "${row.data.name}" matches existing student "${duplicateByName.name}" (${duplicateByName.studentCode})`,
+        });
+        continue;
+      }
+
       // If Excel has a code already, use it; otherwise auto-generate
       const studentCode = row.data.studentCode?.trim()
         || generateStudentCode(school.name, schoolId, seq);
@@ -106,6 +121,7 @@ schoolsRoutes.post('/:id/students/upload', requireAdmin, async (c) => {
         });
         imported += 1;
         seq += 1;
+        existingStudents.push({ id: 0, name: row.data.name, studentCode });
       } catch (err: any) {
         if (err.code === '23505') {
           skipped += 1;

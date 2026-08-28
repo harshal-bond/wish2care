@@ -170,8 +170,13 @@ export async function parseStudentExcel(buffer: ArrayBuffer): Promise<{
     }
   }
 
-  const defaultColumns = { studentCode: 1, name: 2, age: 3, gender: 4 };
-  const columns = headerColumns ?? defaultColumns;
+  if (!headerColumns) {
+    throw new Error(
+      'Could not find required column headers (Name, Age, Gender). Ensure row 1 contains: Student Code, Name, Age, Gender'
+    );
+  }
+
+  const columns = headerColumns;
 
   sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     if (rowNumber < startRow) return;

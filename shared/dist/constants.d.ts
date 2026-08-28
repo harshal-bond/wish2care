@@ -6,6 +6,8 @@ export declare const YES_NO: readonly ["Yes", "No"];
 export type YesNo = (typeof YES_NO)[number];
 export declare const YES_PARTIAL_NO: readonly ["Yes", "Partial", "No"];
 export type YesPartialNo = (typeof YES_PARTIAL_NO)[number];
+export declare const APPETITE_OPTIONS: readonly ["Good", "Poor"];
+export type Appetite = (typeof APPETITE_OPTIONS)[number];
 export declare const GENDER_OPTIONS: readonly ["M", "F"];
 export type Gender = (typeof GENDER_OPTIONS)[number];
 export declare const ROLES: readonly ["admin", "fieldworker"];
@@ -123,6 +125,8 @@ export declare const SCORING_POINTS: {
         readonly Yes: 0;
     };
     readonly poorAppetite: {
+        readonly Good: 5;
+        readonly Poor: 0;
         readonly No: 5;
         readonly Yes: 0;
     };
