@@ -11,27 +11,29 @@ import { exportRoutes } from "./routes/export.js";
 import { healthRecordsRoutes } from "./routes/healthRecords.js";
 import { staffRoutes } from "./routes/staff.js";
 import { db } from "./db/index.js";
+import { corsOriginHeader, buildAllowedOrigins } from "./lib/cors.js";
 
 const app = new Hono();
 
 app.use("*", logger());
 
-const defaultOrigins = [
-  "https://wish2care-frontend.vercel.app",
-  "http://localhost:5173",
-];
-
-const corsOrigins = (process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+console.log("[CORS] Allowed origins:", buildAllowedOrigins().join(", "));
+console.log("[CORS] Also allowing *.vercel.app and localhost dev ports");
 
 app.use(
-  "/api/*",
+  "*",
   cors({
-    origin: corsOrigins.length > 0 ? corsOrigins : defaultOrigins,
+    origin: (origin) => {
+      const allowed = corsOriginHeader(origin);
+      if (origin && !allowed) {
+        console.warn("[CORS] Blocked request from origin:", origin);
+      }
+      return allowed;
+    },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
+    exposeHeaders: ["Content-Type"],
+    maxAge: 86400,
     credentials: false,
   })
 );
@@ -89,6 +91,10 @@ app.onError((err, c) => {
   );
 });
 
+app.get("/", (c) => {
+  return c.text("BACKEND VERSION 2");
+});
+
 const port = Number(process.env.PORT) || 3000;
 const hostname = process.env.HOST || "0.0.0.0";
 
@@ -98,8 +104,4 @@ serve({
   fetch: app.fetch,
   port,
   hostname,
-});
-
-app.get("/", (c) => {
-  return c.text("BACKEND VERSION 2");
 });
