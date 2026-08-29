@@ -124,9 +124,10 @@ export function countCompletedDomains(record) {
     return SCREENING_SECTIONS.filter((section) => section.fields.every(({ key }) => filled(record[key]))).length;
 }
 export function isRecordComplete(record) {
-    if (record.assessmentComplete === true)
-        return true;
     return countCompletedDomains(record) === 8;
+}
+export function isCaseSubmitted(record, mentalAssessmentComplete) {
+    return record?.assessmentComplete === true && isRecordComplete(record) && mentalAssessmentComplete;
 }
 export function buildStudentListStatus(record, mentalAssessmentComplete) {
     const completedDomains = record ? countCompletedDomains(record) : 0;
@@ -135,7 +136,7 @@ export function buildStudentListStatus(record, mentalAssessmentComplete) {
         completedDomains,
         screeningComplete,
         mentalAssessmentComplete,
-        isComplete: screeningComplete,
+        isComplete: isCaseSubmitted(record, mentalAssessmentComplete),
     };
 }
 //# sourceMappingURL=types.js.map

@@ -88,9 +88,6 @@ const STEP_SECTION_ID: Record<number, string> = {
   9: 'G',
 };
 
-/** Sections that block Next navigation (A through D only). */
-const REQUIRED_SECTION_IDS = new Set(['A', 'BP', 'B', 'C', 'D']);
-
 type FormControl = ReturnType<typeof useForm<HealthRecordPartial>>['control'];
 type FormSetValue = ReturnType<typeof useForm<HealthRecordPartial>>['setValue'];
 type FormRegister = ReturnType<typeof useForm<HealthRecordPartial>>['register'];
@@ -256,7 +253,6 @@ export function StudentFormPage() {
   const navigate = useNavigate();
   const studentId = parseInt(id || '0', 10);
   const [activeStep, setActiveStep] = useState(1);
-  const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [showMissingConfirm, setShowMissingConfirm] = useState(false);
   const [missingSections, setMissingSections] = useState<MissingSectionFields[]>([]);
   const [incompleteKeys, setIncompleteKeys] = useState<Set<string>>(new Set());
@@ -270,6 +266,14 @@ export function StudentFormPage() {
   const { data, isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['student', studentId],
     queryFn: () => fetchApi(`/students/${studentId}`),
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: mhData } = useQuery({
+    queryKey: ['student', studentId, 'mental-health'],
+    queryFn: () => fetchApi(`/students/${studentId}/mental-health`),
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -289,7 +293,7 @@ export function StudentFormPage() {
 
   const validateStep = (stepId: number): boolean => {
     const sectionId = STEP_SECTION_ID[stepId];
-    if (!sectionId || !REQUIRED_SECTION_IDS.has(sectionId)) {
+    if (!sectionId) {
       setIncompleteKeys(new Set());
       setSectionBlockMessage(null);
       return true;
@@ -301,8 +305,9 @@ export function StudentFormPage() {
       return true;
     }
     setIncompleteKeys(new Set(missing.map((m) => String(m.key))));
+    const labels = missing.map((m) => m.label).join(', ');
     setSectionBlockMessage(
-      `Please complete ${missing.length} required field${missing.length === 1 ? '' : 's'} before continuing.`
+      `This section is incomplete. Fill ${missing.length} field${missing.length === 1 ? '' : 's'} before continuing: ${labels}.`
     );
     requestAnimationFrame(() => {
       const first = document.querySelector(`[data-field="${String(missing[0].key)}"]`);
@@ -334,7 +339,7 @@ export function StudentFormPage() {
     setIncompleteKeys((prev) => {
       if (prev.size === 0) return prev;
       const sectionId = STEP_SECTION_ID[activeStep];
-      if (!sectionId || !REQUIRED_SECTION_IDS.has(sectionId)) return prev;
+      if (!sectionId) return prev;
       const stillMissing = getMissingFieldsForSection(
         sectionId,
         (watched || {}) as Partial<HealthRecord>
@@ -428,15 +433,16 @@ export function StudentFormPage() {
   const finalizeAssessment = async () => {
     setIsCompleting(true);
     try {
-      form.setValue('assessmentComplete', true, { shouldDirty: true });
       const saved = await forceSave();
-      if (!saved) return;
+      if (!saved && form.formState.isDirty) return;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['student', studentId] }),
         queryClient.invalidateQueries({ queryKey: ['students'] }),
       ]);
       setShowMissingConfirm(false);
-      setShowSubmitSuccess(true);
+      const hasMental = (mhData?.data?.length ?? 0) > 0;
+      if (hasMental) navigate(`/students/${studentId}`);
+      else navigate(`/students/${studentId}/mental-health`);
     } finally {
       setIsCompleting(false);
     }
@@ -466,13 +472,8 @@ export function StudentFormPage() {
 
   const stepIncomplete = (stepId: number) => {
     const sectionId = STEP_SECTION_ID[stepId];
-    if (!sectionId || !REQUIRED_SECTION_IDS.has(sectionId)) return false;
+    if (!sectionId) return false;
     return getMissingFieldsForSection(sectionId, (watched || {}) as Partial<HealthRecord>).length > 0;
-  };
-
-  const goToStudentList = () => {
-    setShowSubmitSuccess(false);
-    navigate('/students');
   };
 
   const confirmLeave = () => {
@@ -541,33 +542,6 @@ export function StudentFormPage() {
                 Go to missing fields
               </Button>
             </div>
-          </motion.div>
-        </div>
-      )}
-
-      {showSubmitSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/50 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center space-y-5 border border-gray-100"
-          >
-            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold text-gray-900">Assessment submitted</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">
-                Screening data for <span className="font-semibold text-gray-800">{student.name}</span> has been
-                saved successfully. The assessment is complete.
-              </p>
-            </div>
-            <Button
-              onClick={goToStudentList}
-              className="w-full h-12 rounded-xl text-base font-bold bg-gray-950 hover:bg-gray-800 text-white"
-            >
-              Back to student list
-            </Button>
           </motion.div>
         </div>
       )}
@@ -962,7 +936,7 @@ export function StudentFormPage() {
                           ) : (
                             <CheckCircle2 className="h-5 w-5" />
                           )}
-                          {isCompleting ? 'Submitting...' : 'Complete Screening'}
+                          {isCompleting ? 'Saving...' : 'Complete Physical Screening'}
                         </Button>
                       </div>
                     </div>

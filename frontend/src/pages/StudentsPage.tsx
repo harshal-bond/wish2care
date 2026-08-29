@@ -14,7 +14,7 @@ import { StudentStatusBadges } from '../components/StudentStatusBadges';
 type StatusFilter = 'complete' | 'in_progress' | 'not_started';
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
-  complete: 'Screening Complete',
+  complete: 'Completed',
   in_progress: 'In Progress',
   not_started: 'Not Started',
 };
