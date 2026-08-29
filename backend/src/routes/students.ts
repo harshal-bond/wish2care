@@ -137,12 +137,32 @@ function applyTokenSearch<T extends { name: string; studentCode: string }>(items
   );
 }
 
+/** Unbounded student count — never use a list page length for this. */
+async function countStudents(whereClause: ReturnType<typeof and> | undefined, needsHealthJoin: boolean) {
+  const query = needsHealthJoin
+    ? db
+        .select({ total: count() })
+        .from(students)
+        .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+        .where(whereClause)
+    : db.select({ total: count() }).from(students).where(whereClause);
+  const [row] = await query;
+  return Number(row?.total) || 0;
+}
+
+function parsePageLimit(raw: string | undefined): number | undefined {
+  if (raw == null || raw === '') return undefined;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return undefined;
+  return Math.min(n, 10_000);
+}
+
 studentsRoutes.get('/summary', async (c) => {
   const user = c.get('user');
   const search = c.req.query('search');
   const schoolId = c.req.query('schoolId');
   const status = c.req.query('status') || undefined;
-  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '500', 10) || 500, 1), 500);
+  const limit = parsePageLimit(c.req.query('limit'));
   const offset = Math.max(parseInt(c.req.query('offset') || '0', 10) || 0, 0);
 
   try {
@@ -151,17 +171,13 @@ studentsRoutes.get('/summary', async (c) => {
     let mapped = results.map(mapSlimRow);
     mapped = applyTokenSearch(mapped, search);
 
-    const [{ total }] = await db
-      .select({ total: count(students.id) })
-      .from(students)
-      .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
-      .where(whereClause);
+    const total = await countStudents(whereClause, Boolean(status));
 
     return c.json({
       success: true,
       data: mapped,
-      total: Number(total) || mapped.length,
-      hasMore: offset + mapped.length < Number(total),
+      total,
+      hasMore: limit != null && offset + mapped.length < total,
     });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 500);
@@ -174,21 +190,26 @@ studentsRoutes.get('/stats', async (c) => {
 
   try {
     const whereClause = buildListConditions(user, undefined, schoolId);
-    const [agg] = await db
-      .select({
-        total: count(students.id),
-        completed: sql<number>`count(*) filter (where ${screeningCompleteSql} = true)`.mapWith(Number),
-        inProgress: sql<number>`count(*) filter (where ${completedDomainsSql} > 0 and ${screeningCompleteSql} = false)`.mapWith(Number),
-      })
-      .from(students)
-      .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
-      .where(whereClause);
+    const total = await countStudents(whereClause, false);
+
+    let completed = 0;
+    let inProgress = 0;
+    try {
+      const [agg] = await db
+        .select({
+          completed: sql<number>`coalesce(count(*) filter (where ${screeningCompleteSql}), 0)`.mapWith(Number),
+          inProgress: sql<number>`coalesce(count(*) filter (where coalesce(${completedDomainsSql}, 0) > 0 and not coalesce(${screeningCompleteSql}, false)), 0)`.mapWith(Number),
+        })
+        .from(students)
+        .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+        .where(whereClause);
+      completed = Number(agg?.completed) || 0;
+      inProgress = Number(agg?.inProgress) || 0;
+    } catch (err) {
+      console.error('[stats] status breakdown failed, returning total only:', err);
+    }
 
     const recentRows = await querySlimStudentList(whereClause, { limit: 8, orderByUpdated: true });
-
-    const total = Number(agg?.total) || 0;
-    const completed = Number(agg?.completed) || 0;
-    const inProgress = Number(agg?.inProgress) || 0;
 
     return c.json({
       success: true,
@@ -212,7 +233,7 @@ studentsRoutes.get('/', async (c) => {
 
   try {
     const whereClause = buildListConditions(user, search, schoolId);
-    const results = await querySlimStudentList(whereClause, { limit: 500 });
+    const results = await querySlimStudentList(whereClause);
     let mappedResults = results.map(mapSlimRow);
     mappedResults = applyTokenSearch(mappedResults, search);
 
