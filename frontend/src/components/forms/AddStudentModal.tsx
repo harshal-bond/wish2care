@@ -79,19 +79,14 @@ export function AddStudentModal({
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
   const [pendingSubmit, setPendingSubmit] = useState<FormValues | null>(null);
 
+  const [checkingDupes, setCheckingDupes] = useState(false);
+
   const { data: schoolsData } = useQuery({
     queryKey: ['schools'],
     queryFn: () => fetchApi('/schools'),
     enabled: isOpen,
   });
 
-  const { data: studentsData } = useQuery({
-    queryKey: ['students', ''],
-    queryFn: () => fetchApi('/students/summary'),
-    enabled: isOpen,
-  });
-
-  const existingStudents: { id: number; name: string; studentCode: string }[] = studentsData?.data || [];
   const schools: { id: number; name: string }[] = schoolsData?.data || [];
   const defaultSchoolId =
     user?.role === 'fieldworker' && user?.assignedSchoolId ? user.assignedSchoolId : undefined;
@@ -144,12 +139,22 @@ export function AddStudentModal({
     setDuplicateMatches([]);
   };
 
-  const onSubmit = (data: FormValues) => {
-    const matches = existingStudents.filter((s) => namesLikelySame(s.name, data.name));
-    if (matches.length > 0) {
-      setDuplicateMatches(matches);
-      setPendingSubmit(data);
-      return;
+  const onSubmit = async (data: FormValues) => {
+    setCheckingDupes(true);
+    try {
+      const res = await fetchApi(`/students/summary?search=${encodeURIComponent(data.name)}&limit=20`);
+      const matches = ((res?.data || []) as { id: number; name: string; studentCode: string }[]).filter((s) =>
+        namesLikelySame(s.name, data.name)
+      );
+      if (matches.length > 0) {
+        setDuplicateMatches(matches);
+        setPendingSubmit(data);
+        return;
+      }
+    } catch {
+      // Don't block adding a student if the lookup fails.
+    } finally {
+      setCheckingDupes(false);
     }
     submitStudent(data);
   };
@@ -423,7 +428,7 @@ export function AddStudentModal({
             variant="outline"
             onClick={onClose}
             className="rounded-xl h-12 px-8 font-semibold border-gray-200 hover:bg-gray-100 text-gray-700"
-            disabled={addMutation.isPending}
+            disabled={addMutation.isPending || checkingDupes}
           >
             Cancel
           </Button>
@@ -431,10 +436,10 @@ export function AddStudentModal({
             type="submit"
             form="add-student-form"
             className="rounded-xl h-12 px-8 font-bold bg-gray-950 hover:bg-gray-800 text-white shadow-md disabled:opacity-50"
-            disabled={addMutation.isPending || !isValid}
+            disabled={addMutation.isPending || checkingDupes || !isValid}
           >
-            {addMutation.isPending && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
-            {addMutation.isPending ? 'Saving...' : 'Save Student'}
+            {(addMutation.isPending || checkingDupes) && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
+            {addMutation.isPending ? 'Saving...' : checkingDupes ? 'Checking...' : 'Save Student'}
           </Button>
         </div>
       </motion.div>

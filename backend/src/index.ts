@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { compress } from "hono/compress";
 import { logger } from "hono/logger";
 import { sql } from "drizzle-orm";
 
@@ -16,6 +17,7 @@ import { corsOriginHeader, buildAllowedOrigins } from "./lib/cors.js";
 const app = new Hono();
 
 app.use("*", logger());
+app.use("*", compress());
 
 console.log("[CORS] Allowed origins:", buildAllowedOrigins().join(", "));
 console.log("[CORS] Also allowing *.vercel.app and localhost dev ports");

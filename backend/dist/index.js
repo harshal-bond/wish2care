@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { compress } from "hono/compress";
 import { logger } from "hono/logger";
 import { sql } from "drizzle-orm";
 import { authRoutes } from "./routes/auth.js";
@@ -10,20 +11,24 @@ import { exportRoutes } from "./routes/export.js";
 import { healthRecordsRoutes } from "./routes/healthRecords.js";
 import { staffRoutes } from "./routes/staff.js";
 import { db } from "./db/index.js";
+import { corsOriginHeader, buildAllowedOrigins } from "./lib/cors.js";
 const app = new Hono();
 app.use("*", logger());
-const defaultOrigins = [
-    "https://wish2care-frontend.vercel.app",
-    "http://localhost:5173",
-];
-const corsOrigins = (process.env.CORS_ORIGINS || "")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
-app.use("/api/*", cors({
-    origin: corsOrigins.length > 0 ? corsOrigins : defaultOrigins,
+app.use("*", compress());
+console.log("[CORS] Allowed origins:", buildAllowedOrigins().join(", "));
+console.log("[CORS] Also allowing *.vercel.app and localhost dev ports");
+app.use("*", cors({
+    origin: (origin) => {
+        const allowed = corsOriginHeader(origin);
+        if (origin && !allowed) {
+            console.warn("[CORS] Blocked request from origin:", origin);
+        }
+        return allowed;
+    },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
+    exposeHeaders: ["Content-Type"],
+    maxAge: 86400,
     credentials: false,
 }));
 /** Liveness — no DB. Use for Railway process keepalive. */
@@ -67,6 +72,9 @@ app.onError((err, c) => {
         error: err.message,
     }, 500);
 });
+app.get("/", (c) => {
+    return c.text("BACKEND VERSION 2");
+});
 const port = Number(process.env.PORT) || 3000;
 const hostname = process.env.HOST || "0.0.0.0";
 console.log(`Server running on http://${hostname}:${port}`);
@@ -74,8 +82,5 @@ serve({
     fetch: app.fetch,
     port,
     hostname,
-});
-app.get("/", (c) => {
-    return c.text("BACKEND VERSION 2");
 });
 //# sourceMappingURL=index.js.map

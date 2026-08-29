@@ -32,7 +32,7 @@ export function HomeScreen() {
     refetch,
   } = useQuery<StudentWithStatus[]>({
     queryKey: ['students'],
-    queryFn: async () => (await fetchApi('/students/summary'))?.data ?? [],
+    queryFn: async () => (await fetchApi('/students/summary?limit=500'))?.data ?? [],
   });
 
   // All students in this list share the same school — the backend already

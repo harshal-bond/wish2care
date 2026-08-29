@@ -22,9 +22,13 @@ healthRecordsRoutes.put('/:studentId', async (c) => {
         body.studentId = studentId;
         const result = healthRecordPartialSchema.safeParse(body);
         if (!result.success) {
+            const first = result.error.issues[0];
+            const field = first?.path?.length ? first.path.join('.') : 'field';
             return c.json({
                 success: false,
-                error: 'Validation failed',
+                error: first
+                    ? `Validation failed: ${field} — ${first.message}`
+                    : 'Validation failed',
                 issues: result.error.issues,
             }, 400);
         }
