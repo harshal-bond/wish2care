@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { YES_NO, YES_PARTIAL_NO } from './constants.js';
+import { YES_NO, YES_PARTIAL_NO, APPETITE_OPTIONS } from './constants.js';
 export declare const optionalNumber: () => z.ZodEffects<z.ZodUnion<[z.ZodNumber, z.ZodString, z.ZodNull, z.ZodUndefined]>, number | null, string | number | null | undefined>;
 export declare const optionalString: () => z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
 type YesNoVal = (typeof YES_NO)[number] | null;
 type YesPartialNoVal = (typeof YES_PARTIAL_NO)[number] | null;
+type AppetiteVal = (typeof APPETITE_OPTIONS)[number] | null;
 export declare const loginSchema: z.ZodObject<{
     email: z.ZodString;
     password: z.ZodString;
@@ -265,7 +266,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     chronicDisease: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     frequentFever: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     weightLoss: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
-    poorAppetite: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
+    poorAppetite: z.ZodNullable<z.ZodOptional<z.ZodType<AppetiteVal, z.ZodTypeDef, unknown>>>;
     repeatedInfection: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     hospitalisation: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
     medication: z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>;
@@ -321,7 +322,7 @@ export declare const healthRecordSchema: z.ZodObject<{
     chronicDisease?: YesNoVal | undefined;
     frequentFever?: YesNoVal | undefined;
     weightLoss?: YesNoVal | undefined;
-    poorAppetite?: YesNoVal | undefined;
+    poorAppetite?: AppetiteVal | undefined;
     repeatedInfection?: YesNoVal | undefined;
     hospitalisation?: YesNoVal | undefined;
     medication?: YesNoVal | undefined;
@@ -392,7 +393,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     chronicDisease: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
     frequentFever: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
     weightLoss: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
-    poorAppetite: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
+    poorAppetite: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<AppetiteVal, z.ZodTypeDef, unknown>>>>;
     repeatedInfection: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
     hospitalisation: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
     medication: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodType<YesNoVal, z.ZodTypeDef, unknown>>>>;
@@ -442,7 +443,7 @@ export declare const healthRecordPartialSchema: z.ZodObject<{
     chronicDisease?: YesNoVal | undefined;
     frequentFever?: YesNoVal | undefined;
     weightLoss?: YesNoVal | undefined;
-    poorAppetite?: YesNoVal | undefined;
+    poorAppetite?: AppetiteVal | undefined;
     repeatedInfection?: YesNoVal | undefined;
     hospitalisation?: YesNoVal | undefined;
     medication?: YesNoVal | undefined;

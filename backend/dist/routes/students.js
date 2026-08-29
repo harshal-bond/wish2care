@@ -3,9 +3,9 @@ import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 import { studentSchema, studentMentalHealthSchema, nameMatchesQuery, firstSearchToken, normalizeAppetiteValue, } from '@wish2care/shared';
-import { eq, ilike, or, and, desc, count, inArray } from 'drizzle-orm';
+import { eq, ilike, or, and, desc, count, sql } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/studentCode.js';
-import { healthRecordStatusSelect, statusFromRow } from '../lib/studentListStatus.js';
+import { completedDomainsSql, screeningCompleteSql, mentalCompleteSql } from '../lib/listStatusSql.js';
 import { z } from 'zod';
 export const studentsRoutes = new Hono();
 studentsRoutes.use('/*', authMiddleware);
@@ -14,16 +14,7 @@ const studentDemographicsSchema = z.object({
     age: z.coerce.number().min(1).max(100).optional(),
     gender: z.enum(['M', 'F']).optional(),
 });
-async function loadMentalHealthStudentIds(studentIds) {
-    if (studentIds.length === 0)
-        return new Set();
-    const rows = await db
-        .selectDistinct({ studentId: studentMentalHealthAssessments.studentId })
-        .from(studentMentalHealthAssessments)
-        .where(inArray(studentMentalHealthAssessments.studentId, studentIds));
-    return new Set(rows.map((r) => r.studentId));
-}
-function buildListConditions(user, search, schoolId) {
+function buildListConditions(user, search, schoolId, status) {
     const conditions = [];
     if (user.role === 'fieldworker' && user.assignedSchoolId) {
         conditions.push(eq(students.schoolId, user.assignedSchoolId));
@@ -41,17 +32,68 @@ function buildListConditions(user, search, schoolId) {
             conditions.push(ilike(students.studentCode, searchPattern));
         }
     }
+    if (status === 'complete') {
+        conditions.push(sql `${screeningCompleteSql} = true`);
+    }
+    else if (status === 'in_progress') {
+        conditions.push(sql `${completedDomainsSql} > 0 AND ${screeningCompleteSql} = false`);
+    }
+    else if (status === 'not_started') {
+        conditions.push(sql `(${completedDomainsSql} = 0 OR ${completedDomainsSql} IS NULL) AND ${screeningCompleteSql} = false`);
+    }
     return conditions.length > 0 ? and(...conditions) : undefined;
 }
-function mapStudentListRow(row, mentalIds) {
-    const mentalAssessmentComplete = mentalIds.has(row.student.id);
-    const _status = statusFromRow(row, mentalAssessmentComplete);
+function mapSlimRow(row) {
+    const completedDomains = row.completedDomains ?? 0;
+    const screeningComplete = row.screeningComplete === true;
     return {
-        ...row.student,
-        school: row.school,
-        healthRecord: row.hrId != null ? { updatedAt: row.updatedAt } : null,
-        _status,
+        id: row.id,
+        name: row.name,
+        studentCode: row.studentCode,
+        age: row.age,
+        gender: row.gender,
+        schoolId: row.schoolId,
+        school: row.schoolName ? { id: row.schoolId, name: row.schoolName } : null,
+        healthRecord: row.hrUpdatedAt ? { updatedAt: row.hrUpdatedAt } : null,
+        _status: {
+            completedDomains,
+            screeningComplete,
+            mentalAssessmentComplete: row.mentalAssessmentComplete === true,
+            isComplete: screeningComplete,
+        },
     };
+}
+async function querySlimStudentList(whereClause, opts) {
+    let query = db
+        .select({
+        id: students.id,
+        name: students.name,
+        studentCode: students.studentCode,
+        age: students.age,
+        gender: students.gender,
+        schoolId: students.schoolId,
+        schoolName: schools.name,
+        hrUpdatedAt: healthRecords.updatedAt,
+        completedDomains: completedDomainsSql,
+        screeningComplete: screeningCompleteSql,
+        mentalAssessmentComplete: mentalCompleteSql,
+    })
+        .from(students)
+        .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+        .leftJoin(schools, eq(students.schoolId, schools.id))
+        .where(whereClause)
+        .$dynamic();
+    if (opts?.orderByUpdated) {
+        query = query.orderBy(sql `${healthRecords.updatedAt} desc nulls last`);
+    }
+    else {
+        query = query.orderBy(students.name);
+    }
+    if (opts?.limit)
+        query = query.limit(opts.limit);
+    if (opts?.offset)
+        query = query.offset(opts.offset);
+    return query;
 }
 function applyTokenSearch(items, search) {
     if (!search?.trim())
@@ -60,44 +102,62 @@ function applyTokenSearch(items, search) {
     return items.filter((s) => nameMatchesQuery(s.name, q) ||
         s.studentCode.toLowerCase().includes(q.toLowerCase()));
 }
-async function queryStudentList(whereClause, limit) {
-    let query = db
-        .select({
-        student: students,
-        school: schools,
-        ...healthRecordStatusSelect,
-    })
-        .from(students)
-        .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
-        .leftJoin(schools, eq(students.schoolId, schools.id))
-        .where(whereClause)
-        .orderBy(students.name)
-        .$dynamic();
-    if (limit)
-        query = query.limit(limit);
-    return query;
-}
 studentsRoutes.get('/summary', async (c) => {
     const user = c.get('user');
     const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
+    const status = c.req.query('status') || undefined;
+    const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '500', 10) || 500, 1), 500);
+    const offset = Math.max(parseInt(c.req.query('offset') || '0', 10) || 0, 0);
     try {
-        const whereClause = buildListConditions(user, search, schoolId);
-        const results = await queryStudentList(whereClause, search ? 200 : undefined);
-        const mentalIds = await loadMentalHealthStudentIds(results.map((r) => r.student.id));
-        let mapped = results.map((row) => mapStudentListRow(row, mentalIds));
+        const whereClause = buildListConditions(user, search, schoolId, status);
+        const results = await querySlimStudentList(whereClause, { limit, offset });
+        let mapped = results.map(mapSlimRow);
         mapped = applyTokenSearch(mapped, search);
-        const summary = mapped.map((s) => ({
-            id: s.id,
-            name: s.name,
-            studentCode: s.studentCode,
-            age: s.age,
-            gender: s.gender,
-            school: s.school,
-            healthRecord: s.healthRecord,
-            _status: s._status,
-        }));
-        return c.json({ success: true, data: summary });
+        const [{ total }] = await db
+            .select({ total: count(students.id) })
+            .from(students)
+            .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+            .where(whereClause);
+        return c.json({
+            success: true,
+            data: mapped,
+            total: Number(total) || mapped.length,
+            hasMore: offset + mapped.length < Number(total),
+        });
+    }
+    catch (err) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+studentsRoutes.get('/stats', async (c) => {
+    const user = c.get('user');
+    const schoolId = c.req.query('schoolId');
+    try {
+        const whereClause = buildListConditions(user, undefined, schoolId);
+        const [agg] = await db
+            .select({
+            total: count(students.id),
+            completed: sql `count(*) filter (where ${screeningCompleteSql} = true)`.mapWith(Number),
+            inProgress: sql `count(*) filter (where ${completedDomainsSql} > 0 and ${screeningCompleteSql} = false)`.mapWith(Number),
+        })
+            .from(students)
+            .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
+            .where(whereClause);
+        const recentRows = await querySlimStudentList(whereClause, { limit: 8, orderByUpdated: true });
+        const total = Number(agg?.total) || 0;
+        const completed = Number(agg?.completed) || 0;
+        const inProgress = Number(agg?.inProgress) || 0;
+        return c.json({
+            success: true,
+            data: {
+                total,
+                completed,
+                inProgress,
+                pending: Math.max(0, total - completed - inProgress),
+                recent: recentRows.map(mapSlimRow),
+            },
+        });
     }
     catch (err) {
         return c.json({ success: false, error: err.message }, 500);
@@ -109,11 +169,64 @@ studentsRoutes.get('/', async (c) => {
     const schoolId = c.req.query('schoolId');
     try {
         const whereClause = buildListConditions(user, search, schoolId);
-        const results = await queryStudentList(whereClause, search ? 200 : undefined);
-        const mentalIds = await loadMentalHealthStudentIds(results.map((r) => r.student.id));
-        let mappedResults = results.map((row) => mapStudentListRow(row, mentalIds));
+        const results = await querySlimStudentList(whereClause, { limit: 500 });
+        let mappedResults = results.map(mapSlimRow);
         mappedResults = applyTokenSearch(mappedResults, search);
         return c.json({ success: true, data: mappedResults });
+    }
+    catch (err) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+studentsRoutes.get('/mental-health/all', requireAdmin, async (c) => {
+    try {
+        const studentsWithData = await db
+            .select({
+            id: students.id,
+            name: students.name,
+            studentCode: students.studentCode,
+            age: students.age,
+            gender: students.gender,
+            schoolId: students.schoolId,
+            school: schools,
+            chronicDisease: healthRecords.chronicDisease,
+            weightLoss: healthRecords.weightLoss,
+            poorAppetite: healthRecords.poorAppetite,
+        })
+            .from(students)
+            .leftJoin(schools, eq(schools.id, students.schoolId))
+            .leftJoin(healthRecords, eq(healthRecords.studentId, students.id));
+        const allAssessments = await db
+            .select({
+            id: studentMentalHealthAssessments.id,
+            studentId: studentMentalHealthAssessments.studentId,
+            date: studentMentalHealthAssessments.date,
+            totalScore: studentMentalHealthAssessments.totalScore,
+        })
+            .from(studentMentalHealthAssessments)
+            .orderBy(desc(studentMentalHealthAssessments.createdAt));
+        const assessmentsByStudent = allAssessments.reduce((acc, a) => {
+            if (!acc[a.studentId])
+                acc[a.studentId] = [];
+            acc[a.studentId].push(a);
+            return acc;
+        }, {});
+        const result = studentsWithData.map((row) => ({
+            id: row.id,
+            name: row.name,
+            studentCode: row.studentCode,
+            age: row.age,
+            gender: row.gender,
+            schoolId: row.schoolId,
+            school: row.school,
+            healthRecord: {
+                chronicDisease: row.chronicDisease,
+                weightLoss: row.weightLoss,
+                poorAppetite: row.poorAppetite,
+            },
+            mentalHealthAssessments: assessmentsByStudent[row.id] || [],
+        }));
+        return c.json({ success: true, data: result });
     }
     catch (err) {
         return c.json({ success: false, error: err.message }, 500);
@@ -201,43 +314,6 @@ studentsRoutes.post('/', async (c) => {
         }
         const [student] = await db.insert(students).values(result.data).returning();
         return c.json({ success: true, data: student });
-    }
-    catch (err) {
-        return c.json({ success: false, error: err.message }, 500);
-    }
-});
-// ── Mental Health Assessments ────────────────────────────────────────────
-// Admin analytics: all students with their latest mental health data
-studentsRoutes.get('/mental-health/all', requireAdmin, async (c) => {
-    try {
-        // Get all students with school info and health records
-        const studentsWithData = await db.select({
-            student: students,
-            school: schools,
-            healthRecord: healthRecords,
-        })
-            .from(students)
-            .leftJoin(schools, eq(schools.id, students.schoolId))
-            .leftJoin(healthRecords, eq(healthRecords.studentId, students.id));
-        // Get all mental health assessments
-        const allAssessments = await db
-            .select()
-            .from(studentMentalHealthAssessments)
-            .orderBy(desc(studentMentalHealthAssessments.createdAt));
-        // Group assessments by studentId
-        const assessmentsByStudent = allAssessments.reduce((acc, a) => {
-            if (!acc[a.studentId])
-                acc[a.studentId] = [];
-            acc[a.studentId].push(a);
-            return acc;
-        }, {});
-        const result = studentsWithData.map(row => ({
-            ...row.student,
-            school: row.school,
-            healthRecord: row.healthRecord,
-            mentalHealthAssessments: assessmentsByStudent[row.student.id] || [],
-        }));
-        return c.json({ success: true, data: result });
     }
     catch (err) {
         return c.json({ success: false, error: err.message }, 500);

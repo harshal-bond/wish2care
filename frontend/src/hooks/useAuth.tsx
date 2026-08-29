@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { fetchApi } from '../lib/api';
+import { ApiError, fetchApi } from '../lib/api';
 
 interface User {
   id: number;
@@ -17,33 +17,68 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const USER_KEY = 'wish2care_user';
+
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as User;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    if (!localStorage.getItem('token')) return null;
+    return readCachedUser();
+  });
+  const [loading, setLoading] = useState(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    // Cached user lets the portal render immediately; /auth/me refreshes in the background.
+    return !readCachedUser();
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      fetchApi('/auth/me')
-        .then(res => {
-          if (res?.success) setUser(res.data.worker);
-          else localStorage.removeItem('token');
-        })
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
-    } else {
+    if (!token) {
       setLoading(false);
+      return;
     }
+
+    fetchApi('/auth/me')
+      .then((res) => {
+        if (res?.success) {
+          setUser(res.data.worker);
+          localStorage.setItem(USER_KEY, JSON.stringify(res.data.worker));
+        } else {
+          localStorage.removeItem('token');
+          localStorage.removeItem(USER_KEY);
+          setUser(null);
+        }
+      })
+      .catch((err) => {
+        const status = err instanceof ApiError ? err.status : undefined;
+        if (status === 401 || status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem(USER_KEY);
+          setUser(null);
+        }
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const login = (token: string, user: User) => {
+  const login = (token: string, nextUser: User) => {
     localStorage.setItem('token', token);
-    setUser(user);
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem(USER_KEY);
     setUser(null);
   };
 

@@ -1,7 +1,16 @@
 export const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-const FETCH_TIMEOUT_MS = 45_000;
-const MAX_RETRIES = 2;
+const FETCH_TIMEOUT_MS = 25_000;
+const MAX_RETRIES = 1;
+
+export class ApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,14 +65,18 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
       });
     } catch (err) {
       lastError = err;
-      if (attempt < MAX_RETRIES) continue;
-      throw new Error(networkErrorMessage(endpoint, err));
+      const timedOut = err instanceof DOMException && err.name === 'AbortError';
+      // Timeouts already waited 25s — retrying triples the spinner.
+      if (timedOut || attempt >= MAX_RETRIES) {
+        throw new ApiError(networkErrorMessage(endpoint, err));
+      }
+      continue;
     }
 
     // Handle blob responses (like Excel export)
     if (response.headers.get('Content-Type')?.includes('spreadsheetml')) {
       if (!response.ok) {
-        throw new Error('Export failed');
+        throw new ApiError('Export failed', response.status);
       }
       return response.blob();
     }
@@ -72,23 +85,23 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     try {
       data = await response.json();
     } catch {
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.ok) throw new ApiError('Network response was not ok', response.status);
       return null;
     }
 
     if (!response.ok) {
-      // DB / server errors — not "cannot reach server"
       if (response.status === 503) {
-        throw new Error(
+        throw new ApiError(
           data.error ||
-            'Server database is temporarily unavailable. Retry in a few seconds.'
+            'Server database is temporarily unavailable. Retry in a few seconds.',
+          503
         );
       }
-      throw new Error(data.error || data.message || 'API request failed');
+      throw new ApiError(data.error || data.message || 'API request failed', response.status);
     }
 
     return data;
   }
 
-  throw new Error(networkErrorMessage(endpoint, lastError));
+  throw new ApiError(networkErrorMessage(endpoint, lastError));
 }

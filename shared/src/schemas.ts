@@ -23,7 +23,9 @@ import {
   CONCENTRATION_OPTIONS,
   HAND_HYGIENE_OPTIONS,
   BP_CLASS_OPTIONS,
+  APPETITE_OPTIONS,
 } from './constants.js';
+import { normalizeAppetiteValue } from './utils/appetite.js';
 
 export const optionalNumber = () =>
   z.union([z.number(), z.string(), z.null(), z.undefined()])
@@ -51,6 +53,21 @@ const yesNoEnum = optionalEnum(YES_NO) as z.ZodType<YesNoVal, z.ZodTypeDef, unkn
 
 type YesPartialNoVal = (typeof YES_PARTIAL_NO)[number] | null;
 const yesPartialNoEnum = optionalEnum(YES_PARTIAL_NO) as z.ZodType<YesPartialNoVal, z.ZodTypeDef, unknown>;
+
+type AppetiteVal = (typeof APPETITE_OPTIONS)[number] | null;
+const appetiteEnum = z
+  .union([
+    z.enum(APPETITE_OPTIONS),
+    z.enum(YES_NO),
+    z.literal(''),
+    z.null(),
+    z.undefined(),
+  ])
+  .transform((val): AppetiteVal => {
+    const normalized = normalizeAppetiteValue(val);
+    if (normalized === 'Good' || normalized === 'Poor') return normalized;
+    return null;
+  }) as z.ZodType<AppetiteVal, z.ZodTypeDef, unknown>;
 
 // ── Auth schemas ───────────────────────────────────────────────────────
 export const loginSchema = z.object({
@@ -187,7 +204,7 @@ export const healthRecordSchema = z.object({
   chronicDisease: yesNoEnum.optional().nullable(),
   frequentFever: yesNoEnum.optional().nullable(),
   weightLoss: yesNoEnum.optional().nullable(),
-  poorAppetite: yesNoEnum.optional().nullable(),
+  poorAppetite: appetiteEnum.optional().nullable(),
   repeatedInfection: yesNoEnum.optional().nullable(),
   hospitalisation: yesNoEnum.optional().nullable(),
   medication: yesNoEnum.optional().nullable(),

@@ -1,10 +1,10 @@
-import { useState, useDeferredValue, useMemo } from 'react';
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
+import { useInfiniteQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { Input, Card, CardContent, Button } from '../components/ui';
 import { Search, SearchX, ArrowRight, GraduationCap, UserPlus, X } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { AddStudentModal } from '../components/forms/AddStudentModal';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
@@ -19,13 +19,7 @@ const STATUS_LABELS: Record<StatusFilter, string> = {
   not_started: 'Not Started',
 };
 
-function matchesStatus(student: any, status: StatusFilter) {
-  const screeningComplete = !!(student._status?.screeningComplete ?? student._status?.isComplete);
-  const domains = student._status?.completedDomains ?? 0;
-  if (status === 'complete') return screeningComplete;
-  if (status === 'in_progress') return !screeningComplete && domains > 0;
-  return !screeningComplete && domains === 0;
-}
+const PAGE_SIZE = 48;
 
 export function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,14 +35,25 @@ export function StudentsPage() {
       ? rawStatus
       : null;
 
-  const deferredSearch = useDeferredValue(useDebouncedValue(searchTerm, 150));
+  const deferredSearch = useDebouncedValue(searchTerm, 200);
   const q = deferredSearch.trim();
   const serverSearch = q.length >= 2 ? q : '';
 
-  const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['students', serverSearch],
-    queryFn: () =>
-      fetchApi(serverSearch ? `/students/summary?search=${encodeURIComponent(serverSearch)}` : '/students/summary'),
+  const { data, isLoading, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+    queryKey: ['students', serverSearch, statusFilter],
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams();
+      params.set('limit', String(PAGE_SIZE));
+      params.set('offset', String(pageParam));
+      if (serverSearch) params.set('search', serverSearch);
+      if (statusFilter) params.set('status', statusFilter);
+      return fetchApi(`/students/summary?${params.toString()}`);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage?.hasMore) return undefined;
+      return allPages.reduce((n, p) => n + (p.data?.length || 0), 0);
+    },
     staleTime: 60_000,
     placeholderData: keepPreviousData,
     refetchOnMount: false,
@@ -56,17 +61,16 @@ export function StudentsPage() {
   });
 
   const students = useMemo(() => {
-    let list = data?.data || [];
-    if (statusFilter) {
-      list = list.filter((s: any) => matchesStatus(s, statusFilter));
-    }
+    const list = data?.pages.flatMap((p) => p.data || []) ?? [];
     if (serverSearch || !q) return list;
     const lower = q.toLowerCase();
     return list.filter(
       (s: { name?: string; studentCode?: string }) =>
         nameMatchesQuery(s.name, q) || s.studentCode?.toLowerCase().includes(lower)
     );
-  }, [data?.data, q, serverSearch, statusFilter]);
+  }, [data?.pages, q, serverSearch]);
+
+  const total = data?.pages[0]?.total ?? students.length;
 
   const clearStatusFilter = () => {
     const next = new URLSearchParams(searchParams);
@@ -84,7 +88,7 @@ export function StudentsPage() {
           </h1>
           <p className="text-gray-500 mt-1 text-sm">
             {statusFilter
-              ? `${students.length} student${students.length === 1 ? '' : 's'} in this status — search within the list below.`
+              ? `${total} student${total === 1 ? '' : 's'} in this status — search within the list below.`
               : 'Search and choose a student to start entering measurements.'}
           </p>
         </div>
@@ -143,34 +147,25 @@ export function StudentsPage() {
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-900 border-t-transparent" />
         </div>
       ) : students.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {students.map((student: any, idx: number) => {
-            const lastSavedDate = student.healthRecord?.updatedAt 
-              ? new Date(student.healthRecord.updatedAt).toLocaleDateString()
-              : 'Never';
+        <>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {students.map((student: any) => {
+              const lastSavedDate = student.healthRecord?.updatedAt
+                ? new Date(student.healthRecord.updatedAt).toLocaleDateString()
+                : 'Never';
 
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.12, delay: Math.min(idx, 12) * 0.02 }}
-                key={student.id}
-                className="h-full"
-              >
-                <Link to={`/students/${student.id}`} className="block h-full">
+              return (
+                <Link key={student.id} to={`/students/${student.id}`} className="block h-full">
                   <Card className="hover:border-gray-900 hover:shadow-md transition-all duration-200 cursor-pointer h-full border border-gray-100 bg-white rounded-2xl flex flex-col">
                     <CardContent className="p-6 flex flex-col justify-between flex-1 space-y-6">
                       <div className="space-y-4">
-                        {/* Status + Student Code Header */}
                         <div className="flex justify-between items-start gap-2">
                           <span className="inline-flex items-center rounded-xl bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 tracking-tight">
                             {student.studentCode}
                           </span>
-                          
                           <StudentStatusBadges status={student._status} />
                         </div>
 
-                        {/* Name + School Info */}
                         <div className="space-y-1">
                           <h3 className="font-bold text-xl text-gray-900 tracking-tight leading-tight group-hover:text-gray-950">
                             {student.name}
@@ -181,7 +176,6 @@ export function StudentsPage() {
                           </div>
                         </div>
 
-                        {/* Demographic details */}
                         <div className="flex gap-4 text-xs font-medium text-gray-500 pt-1">
                           <div>
                             <span className="text-gray-400">Gender:</span> {formatGender(student.gender)}
@@ -191,8 +185,7 @@ export function StudentsPage() {
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Footer tracking */}
+
                       <div className="pt-4 border-t border-gray-50 flex items-center justify-between text-xs text-gray-400">
                         <span>Last saved: {lastSavedDate}</span>
                         <span className="font-semibold text-gray-900 group-hover:text-gray-950 inline-flex items-center gap-1">
@@ -203,10 +196,22 @@ export function StudentsPage() {
                     </CardContent>
                   </Card>
                 </Link>
-              </motion.div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+          {hasNextPage && (
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="rounded-xl border-gray-200 font-semibold h-11 px-6"
+              >
+                {isFetchingNextPage ? 'Loading…' : 'Load more students'}
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="py-20 text-center bg-white rounded-2xl border border-gray-100 shadow-sm max-w-xl mx-auto space-y-4">
           <SearchX className="mx-auto h-12 w-12 text-gray-300" />
@@ -244,8 +249,8 @@ export function StudentsPage() {
 
       <AnimatePresence>
         {showAddModal && (
-          <AddStudentModal 
-            isOpen={showAddModal} 
+          <AddStudentModal
+            isOpen={showAddModal}
             onClose={() => setShowAddModal(false)}
             initialName={searchTerm}
             user={user}

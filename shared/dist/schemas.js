@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { GENDER_OPTIONS, YES_NO, YES_PARTIAL_NO, ROLES, VALIDATION_RANGES, BREAKFAST_OPTIONS, FRUIT_INTAKE_OPTIONS, VEGETABLES_OPTIONS, PROTEIN_INTAKE_OPTIONS, JUNK_FOOD_OPTIONS, SUGARY_DRINKS_OPTIONS, WATER_INTAKE_OPTIONS, PHYSICAL_ACTIVITY_OPTIONS, SCREEN_TIME_OPTIONS, OUTDOOR_PLAY_OPTIONS, SLEEP_HOURS_OPTIONS, SMOKING_OPTIONS, ALCOHOL_OPTIONS, STRESS_OPTIONS, MOOD_OPTIONS, CONCENTRATION_OPTIONS, HAND_HYGIENE_OPTIONS, BP_CLASS_OPTIONS, } from './constants.js';
+import { GENDER_OPTIONS, YES_NO, YES_PARTIAL_NO, ROLES, VALIDATION_RANGES, BREAKFAST_OPTIONS, FRUIT_INTAKE_OPTIONS, VEGETABLES_OPTIONS, PROTEIN_INTAKE_OPTIONS, JUNK_FOOD_OPTIONS, SUGARY_DRINKS_OPTIONS, WATER_INTAKE_OPTIONS, PHYSICAL_ACTIVITY_OPTIONS, SCREEN_TIME_OPTIONS, OUTDOOR_PLAY_OPTIONS, SLEEP_HOURS_OPTIONS, SMOKING_OPTIONS, ALCOHOL_OPTIONS, STRESS_OPTIONS, MOOD_OPTIONS, CONCENTRATION_OPTIONS, HAND_HYGIENE_OPTIONS, BP_CLASS_OPTIONS, APPETITE_OPTIONS, } from './constants.js';
+import { normalizeAppetiteValue } from './utils/appetite.js';
 export const optionalNumber = () => z.union([z.number(), z.string(), z.null(), z.undefined()])
     .transform((val) => {
     if (val === '' || val === null || val === undefined)
@@ -19,6 +20,20 @@ function optionalEnum(options) {
 }
 const yesNoEnum = optionalEnum(YES_NO);
 const yesPartialNoEnum = optionalEnum(YES_PARTIAL_NO);
+const appetiteEnum = z
+    .union([
+    z.enum(APPETITE_OPTIONS),
+    z.enum(YES_NO),
+    z.literal(''),
+    z.null(),
+    z.undefined(),
+])
+    .transform((val) => {
+    const normalized = normalizeAppetiteValue(val);
+    if (normalized === 'Good' || normalized === 'Poor')
+        return normalized;
+    return null;
+});
 // ── Auth schemas ───────────────────────────────────────────────────────
 export const loginSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -141,7 +156,7 @@ export const healthRecordSchema = z.object({
     chronicDisease: yesNoEnum.optional().nullable(),
     frequentFever: yesNoEnum.optional().nullable(),
     weightLoss: yesNoEnum.optional().nullable(),
-    poorAppetite: yesNoEnum.optional().nullable(),
+    poorAppetite: appetiteEnum.optional().nullable(),
     repeatedInfection: yesNoEnum.optional().nullable(),
     hospitalisation: yesNoEnum.optional().nullable(),
     medication: yesNoEnum.optional().nullable(),

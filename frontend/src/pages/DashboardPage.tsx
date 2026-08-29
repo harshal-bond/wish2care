@@ -1,16 +1,16 @@
-import { useState, useDeferredValue } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent, Input } from '../components/ui';
 import { Users, CheckCircle, Clock, Search, ArrowRight, UserCheck, Calendar, UserPlus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { AddStudentModal } from '../components/forms/AddStudentModal';
 import { Button } from '../components/ui';
-import { nameMatchesQuery } from '@wish2care/shared';
 import { screeningStatusLabel, StudentStatusBadges } from '../components/StudentStatusBadges';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -18,55 +18,40 @@ export function DashboardPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const searchQ = debouncedSearch.trim();
+
   const { data, isLoading } = useQuery({
-    queryKey: ['students', ''],
-    queryFn: () => fetchApi('/students/summary'),
+    queryKey: ['students', 'stats'],
+    queryFn: () => fetchApi('/students/stats'),
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
-  // Must stay above any early return (React hooks order)
-  const deferredSearch = useDeferredValue(search);
+  const { data: searchData, isFetching: searching } = useQuery({
+    queryKey: ['students', 'search', searchQ],
+    queryFn: () => fetchApi(`/students/summary?search=${encodeURIComponent(searchQ)}&limit=8`),
+    enabled: searchQ.length >= 2,
+    staleTime: 30_000,
+  });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-900 border-t-transparent" />
-      </div>
-    );
-  }
+  const stats = data?.data;
+  const total = stats?.total ?? 0;
+  const completed = stats?.completed ?? 0;
+  const inProgress = stats?.inProgress ?? 0;
+  const pending = stats?.pending ?? Math.max(0, total - completed - inProgress);
+  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const recent = stats?.recent ?? [];
+  const lastEditedStudent = recent[0];
+  const searchResults = searchData?.data || [];
 
-  const students = data?.data || [];
-  const completed = students.filter((s: any) => s._status?.screeningComplete ?? s._status?.isComplete).length;
-  const inProgress = students.filter(
-    (s: any) =>
-      !(s._status?.screeningComplete ?? s._status?.isComplete) &&
-      (s._status?.completedDomains ?? 0) > 0
-  ).length;
-  const pending = students.length - completed - inProgress;
-  const progress = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
-
-  const filteredStudents = students.filter((student: any) =>
-    nameMatchesQuery(student.name, deferredSearch) ||
-    student.studentCode.toLowerCase().includes(deferredSearch.toLowerCase())
-  ).slice(0, 4);
-
-  // Greet message based on local time
   const hours = new Date().getHours();
   let greet = 'Good morning';
   if (hours >= 12 && hours < 17) greet = 'Good afternoon';
   else if (hours >= 17) greet = 'Good evening';
 
-  // Last edited student (most recently modified with health records)
-  const sortedByEdit = [...students].sort((a: any, b: any) => {
-    const timeA = a.healthRecord?.updatedAt ? new Date(a.healthRecord.updatedAt).getTime() : 0;
-    const timeB = b.healthRecord?.updatedAt ? new Date(b.healthRecord.updatedAt).getTime() : 0;
-    return timeB - timeA;
-  });
-
-  const lastEditedStudent = sortedByEdit[0];
+  const statValue = (n: number) => (isLoading ? '—' : n);
 
   return (
     <div className="space-y-8">
@@ -91,8 +76,12 @@ export function DashboardPage() {
           />
           {search && (
             <div className="absolute left-0 right-0 mt-2 z-50 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((s: any) => (
+              {search.trim().length < 2 ? (
+                <div className="p-3 text-center text-sm text-gray-400">Type at least 2 characters</div>
+              ) : searching ? (
+                <div className="p-3 text-center text-sm text-gray-400">Searching…</div>
+              ) : searchResults.length > 0 ? (
+                searchResults.slice(0, 4).map((s: any) => (
                   <Link
                     key={s.id}
                     to={`/students/${s.id}`}
@@ -108,8 +97,8 @@ export function DashboardPage() {
               ) : (
                 <div className="p-3 text-center bg-gray-50/50">
                   <p className="text-sm text-gray-500 mb-2">No students found.</p>
-                  <Button 
-                    onClick={() => setShowAddModal(true)} 
+                  <Button
+                    onClick={() => setShowAddModal(true)}
                     variant="outline"
                     className="w-full text-xs font-semibold h-8 rounded-lg shadow-sm bg-white hover:bg-gray-50 text-gray-700"
                   >
@@ -134,7 +123,7 @@ export function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold tracking-tight text-gray-900">{students.length}</div>
+              <div className="text-4xl font-bold tracking-tight text-gray-900">{statValue(total)}</div>
               <p className="text-xs text-gray-400 mt-1">View all students</p>
             </CardContent>
           </Card>
@@ -149,13 +138,13 @@ export function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold tracking-tight text-emerald-600">{completed}</div>
+              <div className="text-4xl font-bold tracking-tight text-emerald-600">{statValue(completed)}</div>
               <p className="text-xs text-gray-400 mt-1">All 8 screening sections done</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                   <div className="bg-emerald-500 h-full" style={{ width: `${progress}%` }} />
                 </div>
-                <span className="text-xs font-semibold text-gray-700 shrink-0">{progress}%</span>
+                <span className="text-xs font-semibold text-gray-700 shrink-0">{isLoading ? '—' : `${progress}%`}</span>
               </div>
             </CardContent>
           </Card>
@@ -170,7 +159,7 @@ export function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold tracking-tight text-amber-600">{inProgress}</div>
+              <div className="text-4xl font-bold tracking-tight text-amber-600">{statValue(inProgress)}</div>
               <p className="text-xs text-gray-400 mt-1">View started assessments</p>
             </CardContent>
           </Card>
@@ -185,7 +174,7 @@ export function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold tracking-tight text-orange-500">{pending}</div>
+              <div className="text-4xl font-bold tracking-tight text-orange-500">{statValue(pending)}</div>
               <p className="text-xs text-gray-400 mt-1">View awaiting data entry</p>
             </CardContent>
           </Card>
@@ -196,7 +185,11 @@ export function DashboardPage() {
         {/* Continue Last Student Card */}
         <div className="md:col-span-1 space-y-6">
           <h2 className="text-lg font-bold text-gray-900 tracking-tight">Recent Activity</h2>
-          {lastEditedStudent ? (
+          {isLoading ? (
+            <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl p-6 text-center text-gray-400 text-sm">
+              Loading recent activity…
+            </Card>
+          ) : lastEditedStudent ? (
             <Card className="border border-gray-100 bg-white shadow-sm rounded-2xl overflow-hidden relative group hover:border-gray-300 transition-all duration-200">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
@@ -208,7 +201,7 @@ export function DashboardPage() {
                     {lastEditedStudent.healthRecord?.updatedAt ? new Date(lastEditedStudent.healthRecord.updatedAt).toLocaleDateString() : ''}
                   </span>
                 </div>
-                
+
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 group-hover:text-gray-950 transition-colors">
                     {lastEditedStudent.name}
@@ -221,7 +214,7 @@ export function DashboardPage() {
                   <span className="text-xs text-gray-500 font-medium">
                     {screeningStatusLabel(lastEditedStudent._status)}
                   </span>
-                  <Link 
+                  <Link
                     to={`/students/${lastEditedStudent.id}`}
                     className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-white bg-gray-900 rounded-xl hover:bg-gray-800 transition-colors shadow-sm"
                   >
@@ -246,32 +239,26 @@ export function DashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {students.slice(0, 5).map((student: any, idx: number) => (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15, delay: idx * 0.05 }}
+            {recent.slice(0, 5).map((student: any) => (
+              <Link
                 key={student.id}
+                to={`/students/${student.id}`}
+                className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-gray-300 hover:shadow-md transition-all duration-200"
               >
-                <Link 
-                  to={`/students/${student.id}`}
-                  className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-gray-300 hover:shadow-md transition-all duration-200"
-                >
-                  <div className="space-y-1.5 min-w-0 pr-4">
-                    <p className="font-semibold text-gray-900 truncate leading-none">{student.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {student.studentCode} • <span className="text-gray-500">{student.school?.name}</span>
-                    </p>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-3">
-                    <StudentStatusBadges status={student._status} />
-                    <ArrowRight className="h-4 w-4 text-gray-400" />
-                  </div>
-                </Link>
-              </motion.div>
+                <div className="space-y-1.5 min-w-0 pr-4">
+                  <p className="font-semibold text-gray-900 truncate leading-none">{student.name}</p>
+                  <p className="text-xs text-gray-400">
+                    {student.studentCode} • <span className="text-gray-500">{student.school?.name}</span>
+                  </p>
+                </div>
+                <div className="shrink-0 flex items-center gap-3">
+                  <StudentStatusBadges status={student._status} />
+                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                </div>
+              </Link>
             ))}
-            
-            {students.length === 0 && (
+
+            {!isLoading && recent.length === 0 && (
               <p className="text-center text-gray-400 py-8 bg-white border border-gray-100 rounded-2xl shadow-sm">
                 No students registered yet.
               </p>
@@ -282,8 +269,8 @@ export function DashboardPage() {
 
       <AnimatePresence>
         {showAddModal && (
-          <AddStudentModal 
-            isOpen={showAddModal} 
+          <AddStudentModal
+            isOpen={showAddModal}
             onClose={() => setShowAddModal(false)}
             initialName={search}
             user={user}
