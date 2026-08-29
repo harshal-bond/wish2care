@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { Card, CardContent, Button } from '../components/ui';
-import { ChevronLeft, Loader2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { isRecordComplete } from '@wish2care/shared';
 
 const QUESTIONS = [
   "Anxiety and depression are common in college students.",
@@ -50,10 +51,10 @@ const OPTIONS = [
 export function MentalHealthFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const studentId = parseInt(id || '0', 10);
-  
+
   const [responses, setResponses] = useState<Record<string, number>>({});
-  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const { data: studentData, isLoading } = useQuery({
     queryKey: ['student', studentId],
@@ -66,9 +67,16 @@ export function MentalHealthFormPage() {
         method: 'POST',
         body: JSON.stringify(payload)
       }),
-    onSuccess: () => {
-      setSubmitSuccess(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['student', studentId] }),
+        queryClient.invalidateQueries({ queryKey: ['students'] }),
+      ]);
+      const physicalDone = studentData?.data?.healthRecord
+        ? isRecordComplete(studentData.data.healthRecord)
+        : false;
+      if (physicalDone) navigate(`/students/${studentId}`);
+      else navigate(`/students/${studentId}/health-record`);
     }
   });
 
@@ -104,29 +112,14 @@ export function MentalHealthFormPage() {
     );
   }
 
-  if (submitSuccess) {
-    return (
-      <div className="max-w-2xl mx-auto py-12 text-center space-y-6">
-        <div className="mx-auto w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle2 className="h-8 w-8" />
-        </div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Assessment Completed</h1>
-        <p className="text-gray-500">Thank you for submitting the mental health awareness scale.</p>
-        <Button onClick={() => navigate(`/students/${studentId}`)} className="mt-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 h-12">
-          Back to Student Profile
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-4xl mx-auto pb-32 space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate(`/students/${studentId}`)} 
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/students/${studentId}`)}
             className="rounded-xl border border-gray-100 bg-white hover:bg-gray-50"
           >
             <ChevronLeft className="h-5 w-5 text-gray-600" />
@@ -170,8 +163,8 @@ export function MentalHealthFormPage() {
                         key={opt.value}
                         onClick={() => handleOptionSelect(idx, opt.value)}
                         className={`flex-1 py-3 px-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
-                          isSelected 
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' 
+                          isSelected
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
                             : 'bg-white border-gray-200 text-gray-600 hover:bg-indigo-50 hover:border-indigo-200'
                         }`}
                       >
@@ -190,8 +183,8 @@ export function MentalHealthFormPage() {
         <div>
           <h3 className="font-bold text-gray-900">Ready to submit?</h3>
           <p className="text-sm text-gray-500">
-            {isFormComplete 
-              ? 'All questions answered.' 
+            {isFormComplete
+              ? 'All questions answered.'
               : `You still have ${missingCount} question${missingCount === 1 ? '' : 's'} remaining.`}
           </p>
         </div>

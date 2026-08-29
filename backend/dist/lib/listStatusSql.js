@@ -47,11 +47,27 @@ export const completedDomainsSql = sql `(
          AND ${healthRecords.dentalCheckup} IS NOT NULL AND ${healthRecords.dentalCheckup} <> ''
          AND ${healthRecords.visionScreening} IS NOT NULL AND ${healthRecords.visionScreening} <> '' THEN 1 ELSE 0 END
 )`.mapWith(Number);
-export const screeningCompleteSql = sql `(
-  COALESCE(${healthRecords.assessmentComplete}, false) = true OR (${completedDomainsSql}) = 8
-)`.mapWith(Boolean);
+export const physicalCompleteSql = sql `((${completedDomainsSql}) = 8)`.mapWith(Boolean);
+/** @deprecated Use physicalCompleteSql — kept so existing imports keep compiling. */
+export const screeningCompleteSql = physicalCompleteSql;
 export const mentalCompleteSql = sql `exists (
   select 1 from student_mental_health_assessments mh
   where mh.student_id = ${students.id}
+)`.mapWith(Boolean);
+/** Final submit on the student page: both checks done and assessmentComplete set. */
+export const caseCompleteSql = sql `(
+  COALESCE(${healthRecords.assessmentComplete}, false) = true
+  AND (${completedDomainsSql}) = 8
+  AND exists (
+    select 1 from student_mental_health_assessments mh
+    where mh.student_id = ${students.id}
+  )
+)`.mapWith(Boolean);
+export const caseStartedSql = sql `(
+  COALESCE(${completedDomainsSql}, 0) > 0
+  OR exists (
+    select 1 from student_mental_health_assessments mh
+    where mh.student_id = ${students.id}
+  )
 )`.mapWith(Boolean);
 //# sourceMappingURL=listStatusSql.js.map

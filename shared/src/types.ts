@@ -357,15 +357,21 @@ export function countCompletedDomains(record: Partial<HealthRecord>): number {
 }
 
 export function isRecordComplete(record: Partial<HealthRecord>): boolean {
-  if (record.assessmentComplete === true) return true;
   return countCompletedDomains(record) === 8;
+}
+
+export function isCaseSubmitted(
+  record: Partial<HealthRecord> | null | undefined,
+  mentalAssessmentComplete: boolean
+): boolean {
+  return record?.assessmentComplete === true && isRecordComplete(record) && mentalAssessmentComplete;
 }
 
 export interface StudentListStatus {
   completedDomains: number;
   screeningComplete: boolean;
   mentalAssessmentComplete: boolean;
-  /** @deprecated Use screeningComplete */
+  /** Overall case submitted from the student detail page. */
   isComplete: boolean;
 }
 
@@ -379,6 +385,6 @@ export function buildStudentListStatus(
     completedDomains,
     screeningComplete,
     mentalAssessmentComplete,
-    isComplete: screeningComplete,
+    isComplete: isCaseSubmitted(record, mentalAssessmentComplete),
   };
 }

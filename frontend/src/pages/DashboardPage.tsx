@@ -157,7 +157,7 @@ export function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold tracking-tight text-emerald-600">{statValue(completed)}</div>
-              <p className="text-xs text-gray-400 mt-1">All 8 screening sections done</p>
+              <p className="text-xs text-gray-400 mt-1">Physical and mental submitted</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                   <div className="bg-emerald-500 h-full" style={{ width: `${progress}%` }} />

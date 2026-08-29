@@ -11,7 +11,7 @@ import {
 } from '@wish2care/shared';
 import { eq, ilike, or, and, desc, count, sql } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/studentCode.js';
-import { completedDomainsSql, screeningCompleteSql, mentalCompleteSql } from '../lib/listStatusSql.js';
+import { completedDomainsSql, physicalCompleteSql, mentalCompleteSql, caseCompleteSql, caseStartedSql } from '../lib/listStatusSql.js';
 import { z } from 'zod';
 
 export const studentsRoutes = new Hono();
@@ -49,11 +49,11 @@ function buildListConditions(user: any, search?: string, schoolId?: string, stat
   }
 
   if (status === 'complete') {
-    conditions.push(sql`${screeningCompleteSql} = true`);
+    conditions.push(sql`${caseCompleteSql} = true`);
   } else if (status === 'in_progress') {
-    conditions.push(sql`${completedDomainsSql} > 0 AND ${screeningCompleteSql} = false`);
+    conditions.push(sql`${caseStartedSql} = true AND ${caseCompleteSql} = false`);
   } else if (status === 'not_started') {
-    conditions.push(sql`(${completedDomainsSql} = 0 OR ${completedDomainsSql} IS NULL) AND ${screeningCompleteSql} = false`);
+    conditions.push(sql`${caseStartedSql} = false`);
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
@@ -71,9 +71,12 @@ function mapSlimRow(row: {
   completedDomains: number | null;
   screeningComplete: boolean | null;
   mentalAssessmentComplete: boolean | null;
+  caseComplete: boolean | null;
 }) {
   const completedDomains = row.completedDomains ?? 0;
   const screeningComplete = row.screeningComplete === true;
+  const mentalAssessmentComplete = row.mentalAssessmentComplete === true;
+  const isComplete = row.caseComplete === true;
   return {
     id: row.id,
     name: row.name,
@@ -86,8 +89,8 @@ function mapSlimRow(row: {
     _status: {
       completedDomains,
       screeningComplete,
-      mentalAssessmentComplete: row.mentalAssessmentComplete === true,
-      isComplete: screeningComplete,
+      mentalAssessmentComplete,
+      isComplete,
     },
   };
 }
@@ -107,8 +110,9 @@ async function querySlimStudentList(
       schoolName: schools.name,
       hrUpdatedAt: healthRecords.updatedAt,
       completedDomains: completedDomainsSql,
-      screeningComplete: screeningCompleteSql,
+      screeningComplete: physicalCompleteSql,
       mentalAssessmentComplete: mentalCompleteSql,
+      caseComplete: caseCompleteSql,
     })
     .from(students)
     .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
@@ -197,8 +201,8 @@ studentsRoutes.get('/stats', async (c) => {
     try {
       const [agg] = await db
         .select({
-          completed: sql<number>`coalesce(count(*) filter (where ${screeningCompleteSql}), 0)`.mapWith(Number),
-          inProgress: sql<number>`coalesce(count(*) filter (where coalesce(${completedDomainsSql}, 0) > 0 and not coalesce(${screeningCompleteSql}, false)), 0)`.mapWith(Number),
+          completed: sql<number>`coalesce(count(*) filter (where ${caseCompleteSql}), 0)`.mapWith(Number),
+          inProgress: sql<number>`coalesce(count(*) filter (where ${caseStartedSql} and not coalesce(${caseCompleteSql}, false)), 0)`.mapWith(Number),
         })
         .from(students)
         .leftJoin(healthRecords, eq(students.id, healthRecords.studentId))
