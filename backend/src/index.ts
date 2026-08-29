@@ -20,7 +20,7 @@ app.use("*", logger());
 app.use("*", compress());
 
 console.log("[CORS] Allowed origins:", buildAllowedOrigins().join(", "));
-console.log("[CORS] Also allowing *.vercel.app and localhost dev ports");
+console.log("[CORS] Also allowing *.vercel.app, app.wish2care.in, and localhost dev ports");
 
 app.use(
   "*",
