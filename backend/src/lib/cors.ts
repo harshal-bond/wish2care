@@ -4,6 +4,7 @@ export function normalizeOrigin(origin: string): string {
 }
 
 const DEFAULT_ORIGINS = [
+  'https://app.wish2care.in',
   'https://wish2care-frontend.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
