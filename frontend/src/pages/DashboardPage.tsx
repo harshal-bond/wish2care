@@ -23,7 +23,25 @@ export function DashboardPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['students', 'stats'],
-    queryFn: () => fetchApi('/students/stats'),
+    queryFn: async () => {
+      try {
+        const res = await fetchApi('/students/stats');
+        if (res?.data && typeof res.data.total === 'number') return res;
+      } catch {
+        // Older backends have no /stats — use the unbounded COUNT from /summary.
+      }
+      const summary = await fetchApi('/students/summary?limit=1');
+      return {
+        success: true,
+        data: {
+          total: Number(summary?.total) || 0,
+          completed: 0,
+          inProgress: 0,
+          pending: Number(summary?.total) || 0,
+          recent: summary?.data || [],
+        },
+      };
+    },
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

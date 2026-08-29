@@ -355,6 +355,16 @@ export function StudentFormPage() {
     form.setValue('bpClass', next, { shouldDirty: Boolean(watched?.systolic && watched?.diastolic) });
   }, [watched?.systolic, watched?.diastolic, watched?.bpClass, form]);
 
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!form.formState.isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [form.formState.isDirty]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -376,28 +386,23 @@ export function StudentFormPage() {
   const student = data.data;
   const today = new Date().toISOString().split('T')[0];
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (isSaving) return;
     if (!validateStep(activeStep)) return;
-    const saved = await forceSave();
-    if (!saved && form.formState.isDirty) return;
     setActiveStep((prev) => Math.min(prev + 1, steps.length));
   };
 
-  const handlePrev = async () => {
+  const handlePrev = () => {
     if (isSaving) return;
-    await forceSave();
     setIncompleteKeys(new Set());
     setSectionBlockMessage(null);
     setActiveStep((prev) => Math.max(prev - 1, 1));
   };
 
-  const goToStep = async (targetStep: number) => {
+  const goToStep = (targetStep: number) => {
     if (isSaving) return;
     if (targetStep === activeStep) return;
-    // Allow revisiting earlier steps; gate forward jumps through current section
     if (targetStep > activeStep && !validateStep(activeStep)) return;
-    await forceSave();
     setIncompleteKeys(new Set());
     setSectionBlockMessage(null);
     setActiveStep(targetStep);
@@ -470,6 +475,11 @@ export function StudentFormPage() {
     navigate('/students');
   };
 
+  const confirmLeave = () => {
+    if (!form.formState.isDirty) return true;
+    return window.confirm('You have unsaved changes. Leave without saving?');
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-32">
       {isSaving && (
@@ -477,7 +487,7 @@ export function StudentFormPage() {
           <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-10 py-8 shadow-xl border border-red-100">
             <Loader2 className="h-10 w-10 animate-spin text-red-600" />
             <p className="text-lg font-bold text-red-600">Saving… Please wait</p>
-            <p className="text-sm text-gray-500">Do not tap Next until save completes</p>
+            <p className="text-sm text-gray-500">Do not leave this page until save completes</p>
           </div>
         </div>
       )}
@@ -581,7 +591,10 @@ export function StudentFormPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/students/${studentId}`)}
+            onClick={() => {
+              if (!confirmLeave()) return;
+              navigate(`/students/${studentId}`);
+            }}
             className="rounded-xl border border-gray-100 bg-white"
           >
             <ChevronLeft className="h-5 w-5 text-gray-600" />
@@ -642,7 +655,7 @@ export function StudentFormPage() {
                 key={step.id}
                 type="button"
                 disabled={isSaving}
-                onClick={() => void goToStep(step.id)}
+                onClick={() => goToStep(step.id)}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold whitespace-nowrap text-left transition-all duration-150 shrink-0 w-full',
                   isActive
