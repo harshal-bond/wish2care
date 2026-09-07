@@ -50,6 +50,13 @@
       "when": 1785983000000,
       "tag": "0006_staff_and_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785984000000,
+      "tag": "0007_student_class_section",
+      "breakpoints": true
     }
   ]
 }
