@@ -63,6 +63,8 @@ export interface Student {
   collegeStream?: string | null;
   localAddress?: string | null;
   area?: string | null;
+  className?: string | null;
+  section?: string | null;
   createdAt: string | Date;
 }
 

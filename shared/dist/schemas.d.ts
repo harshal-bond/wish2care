@@ -58,6 +58,8 @@ export declare const studentSchema: z.ZodObject<{
     collegeStream: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
     localAddress: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
     area: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
+    className: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
+    section: z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNull, z.ZodUndefined]>, string | null, string | null | undefined>;
 }, "strip", z.ZodTypeAny, {
     email: string | null;
     name: string;
@@ -74,6 +76,8 @@ export declare const studentSchema: z.ZodObject<{
     collegeStream: string | null;
     localAddress: string | null;
     area: string | null;
+    className: string | null;
+    section: string | null;
     studentCode?: string | undefined;
 }, {
     name: string;
@@ -92,6 +96,8 @@ export declare const studentSchema: z.ZodObject<{
     collegeStream?: string | null | undefined;
     localAddress?: string | null | undefined;
     area?: string | null | undefined;
+    className?: string | null | undefined;
+    section?: string | null | undefined;
 }>;
 export declare const studentUploadRowSchema: z.ZodObject<{
     studentCode: z.ZodNullable<z.ZodOptional<z.ZodString>>;

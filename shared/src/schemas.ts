@@ -106,6 +106,8 @@ export const studentSchema = z.object({
   collegeStream: optionalString(),
   localAddress: optionalString(),
   area: optionalString(),
+  className: optionalString(),
+  section: optionalString(),
 });
 
 export const studentUploadRowSchema = z.object({

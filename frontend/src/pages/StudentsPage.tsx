@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useInfiniteQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { Input, Card, CardContent, Button } from '../components/ui';
 import { Search, SearchX, ArrowRight, GraduationCap, UserPlus, X } from 'lucide-react';
@@ -10,6 +10,7 @@ import { AddStudentModal } from '../components/forms/AddStudentModal';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { nameMatchesQuery, formatGender, formatAge } from '@wish2care/shared';
 import { StudentStatusBadges } from '../components/StudentStatusBadges';
+import { ClassSectionFilter, type ClassSectionFilterOptions } from '../components/ClassSectionFilter';
 
 type StatusFilter = 'complete' | 'in_progress' | 'not_started';
 
@@ -34,19 +35,32 @@ export function StudentsPage() {
     rawStatus === 'complete' || rawStatus === 'in_progress' || rawStatus === 'not_started'
       ? rawStatus
       : null;
+  const classFilter = searchParams.get('className') || '';
+  const sectionFilter = searchParams.get('section') || '';
+
+  const { data: filterOptions, isLoading: filterOptionsLoading } = useQuery({
+    queryKey: ['students-class-sections'],
+    queryFn: () => fetchApi('/students/class-sections'),
+    staleTime: 300_000,
+  });
+
+  const filterData: ClassSectionFilterOptions | undefined = filterOptions?.data;
+  const classNames: string[] = filterData?.classNames ?? [];
 
   const deferredSearch = useDebouncedValue(searchTerm, 200);
   const q = deferredSearch.trim();
   const serverSearch = q.length >= 2 ? q : '';
 
   const { data, isLoading, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
-    queryKey: ['students', serverSearch, statusFilter],
+    queryKey: ['students', serverSearch, statusFilter, classFilter, sectionFilter],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams();
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String(pageParam));
       if (serverSearch) params.set('search', serverSearch);
       if (statusFilter) params.set('status', statusFilter);
+      if (classFilter) params.set('className', classFilter);
+      if (sectionFilter) params.set('section', sectionFilter);
       return fetchApi(`/students/summary?${params.toString()}`);
     },
     initialPageParam: 0,
@@ -78,6 +92,34 @@ export function StudentsPage() {
     setSearchParams(next, { replace: true });
   };
 
+  const setClassFilter = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set('className', value);
+    else next.delete('className');
+    next.delete('section');
+    setSearchParams(next, { replace: true });
+  };
+
+  const setSectionFilter = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set('section', value);
+    else next.delete('section');
+    setSearchParams(next, { replace: true });
+  };
+
+  const clearClassSectionFilters = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('className');
+    next.delete('section');
+    setSearchParams(next, { replace: true });
+  };
+
+  const hasClassSectionFilter = Boolean(classFilter || sectionFilter);
+
+  const filterSummary = hasClassSectionFilter
+    ? [classFilter, sectionFilter ? `Sec ${sectionFilter}` : null].filter(Boolean).join(' · ')
+    : null;
+
   return (
     <div className="space-y-8">
       {/* Title block */}
@@ -89,7 +131,9 @@ export function StudentsPage() {
           <p className="text-gray-500 mt-1 text-sm">
             {statusFilter
               ? `${total} student${total === 1 ? '' : 's'} in this status — search within the list below.`
-              : 'Search and choose a student to start entering measurements.'}
+              : filterSummary
+                ? `${total} student${total === 1 ? '' : 's'} in ${filterSummary}.`
+                : 'Search and choose a student to start entering measurements.'}
           </p>
         </div>
         {statusFilter && (
@@ -125,6 +169,18 @@ export function StudentsPage() {
             </button>
           ))}
         </div>
+      )}
+
+      {(classNames.length > 0 || hasClassSectionFilter || filterOptionsLoading) && (
+        <ClassSectionFilter
+          classFilter={classFilter}
+          sectionFilter={sectionFilter}
+          options={filterData}
+          isLoading={filterOptionsLoading}
+          onClassChange={setClassFilter}
+          onSectionChange={setSectionFilter}
+          onClear={clearClassSectionFilters}
+        />
       )}
 
       {/* Prominent Search bar */}
@@ -172,8 +228,15 @@ export function StudentsPage() {
                           </h3>
                           <div className="flex items-center gap-1.5 text-xs text-gray-500 leading-none pt-1">
                             <GraduationCap className="h-3.5 w-3.5" />
-                            <span className="line-clamp-1">{student.school?.name}</span>
+                            <span className="line-clamp-1">
+                              {student.className
+                                ? `${student.className}${student.section ? ` · Sec ${student.section}` : ''}`
+                                : student.school?.name}
+                            </span>
                           </div>
+                          {student.className && student.school?.name && (
+                            <p className="text-[11px] text-gray-400 line-clamp-1">{student.school.name}</p>
+                          )}
                         </div>
 
                         <div className="flex gap-4 text-xs font-medium text-gray-500 pt-1">
@@ -220,9 +283,11 @@ export function StudentsPage() {
             <p className="text-gray-400 text-sm max-w-xs mx-auto">
               {searchTerm
                 ? `We couldn't find any students matching "${searchTerm}". Try a different spelling or student code.`
-                : statusFilter
-                  ? `No students are currently in “${STATUS_LABELS[statusFilter]}”.`
-                  : 'No students in this list yet.'}
+                : hasClassSectionFilter
+                  ? `No students match ${filterSummary}. Try a different class or section.`
+                  : statusFilter
+                    ? `No students are currently in “${STATUS_LABELS[statusFilter]}”.`
+                    : 'No students in this list yet.'}
             </p>
           </div>
           {searchTerm && (
@@ -233,7 +298,18 @@ export function StudentsPage() {
               </Button>
             </div>
           )}
-          {statusFilter && !searchTerm && (
+          {hasClassSectionFilter && !searchTerm && (
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                onClick={clearClassSectionFilters}
+                className="rounded-xl border-gray-200 font-semibold h-10 px-4"
+              >
+                Clear class / section filters
+              </Button>
+            </div>
+          )}
+          {statusFilter && !searchTerm && !hasClassSectionFilter && (
             <div className="pt-2">
               <Button
                 variant="outline"
