@@ -206,12 +206,13 @@ studentsRoutes.get('/summary', async (c) => {
 
 studentsRoutes.get('/stats', async (c) => {
   const user = c.get('user');
+  const search = c.req.query('search');
   const schoolId = c.req.query('schoolId');
   const className = c.req.query('className') || undefined;
   const section = c.req.query('section') || undefined;
 
   try {
-    const whereClause = buildListConditions(user, undefined, schoolId, undefined, className, section);
+    const whereClause = buildListConditions(user, search, schoolId, undefined, className, section);
     const total = await countStudents(whereClause, false);
 
     let completed = 0;

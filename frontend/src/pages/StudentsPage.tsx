@@ -11,8 +11,9 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { nameMatchesQuery, formatGender, formatAge } from '@wish2care/shared';
 import { StudentStatusBadges } from '../components/StudentStatusBadges';
 import { ClassSectionFilter, type ClassSectionFilterOptions } from '../components/ClassSectionFilter';
+import { StudentStatsCards, type StudentStatusFilter } from '../components/StudentStatsCards';
 
-type StatusFilter = 'complete' | 'in_progress' | 'not_started';
+type StatusFilter = StudentStatusFilter;
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
   complete: 'Completed',
@@ -50,6 +51,30 @@ export function StudentsPage() {
   const deferredSearch = useDebouncedValue(searchTerm, 200);
   const q = deferredSearch.trim();
   const serverSearch = q.length >= 2 ? q : '';
+
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['students', 'stats', classFilter, sectionFilter, serverSearch],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (classFilter) params.set('className', classFilter);
+      if (sectionFilter) params.set('section', sectionFilter);
+      if (serverSearch) params.set('search', serverSearch);
+      const qs = params.toString();
+      return fetchApi(`/students/stats${qs ? `?${qs}` : ''}`);
+    },
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const stats = statsData?.data;
+  const statsCards = {
+    total: stats?.total ?? 0,
+    completed: stats?.completed ?? 0,
+    inProgress: stats?.inProgress ?? 0,
+    pending: stats?.pending ?? 0,
+  };
 
   const { data, isLoading, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['students', serverSearch, statusFilter, classFilter, sectionFilter],
@@ -120,6 +145,26 @@ export function StudentsPage() {
     ? [classFilter, sectionFilter ? `Sec ${sectionFilter}` : null].filter(Boolean).join(' · ')
     : null;
 
+  const scopeLabel = [filterSummary, serverSearch ? `"${serverSearch}"` : null].filter(Boolean).join(' · ');
+  const hasActiveScope = Boolean(scopeLabel);
+
+  const getFilterHref = (status: StatusFilter | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (status) params.set('status', status);
+    else params.delete('status');
+    const qs = params.toString();
+    return qs ? `/students?${qs}` : '/students';
+  };
+
+  const statsSubtitle = hasActiveScope
+    ? {
+        total: scopeLabel ? `In ${scopeLabel}` : undefined,
+        complete: 'Completed in current filter',
+        inProgress: 'Started in current filter',
+        notStarted: 'Awaiting data in current filter',
+      }
+    : undefined;
+
   return (
     <div className="space-y-8">
       {/* Title block */}
@@ -143,33 +188,18 @@ export function StudentsPage() {
             className="rounded-xl border-gray-200 font-semibold h-10 px-4 self-start sm:self-center"
           >
             <X className="h-4 w-4 mr-1.5" />
-            Clear filter
+            Clear status
           </Button>
         )}
       </div>
 
-      {statusFilter && (
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSearchParams({ status: key }, { replace: true })}
-              className={`rounded-xl px-3.5 py-2 text-xs font-semibold border transition-colors ${
-                statusFilter === key
-                  ? key === 'complete'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                    : key === 'in_progress'
-                      ? 'bg-amber-50 border-amber-200 text-amber-700'
-                      : 'bg-orange-50 border-orange-200 text-orange-700'
-                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              {STATUS_LABELS[key]}
-            </button>
-          ))}
-        </div>
-      )}
+      <StudentStatsCards
+        stats={statsCards}
+        isLoading={statsLoading}
+        activeStatus={statusFilter}
+        getFilterHref={getFilterHref}
+        subtitle={statsSubtitle}
+      />
 
       {(classNames.length > 0 || hasClassSectionFilter || filterOptionsLoading) && (
         <ClassSectionFilter
