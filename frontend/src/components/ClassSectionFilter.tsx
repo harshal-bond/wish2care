@@ -72,7 +72,7 @@ export function ClassSectionFilter({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
           <Filter className="h-4 w-4 text-gray-400" />
-          Filter by class / section
+          Filter
         </div>
         {hasActiveFilter && (
           <Button
