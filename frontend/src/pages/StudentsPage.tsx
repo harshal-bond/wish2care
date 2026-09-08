@@ -335,7 +335,7 @@ export function StudentsPage() {
                 onClick={clearClassSectionFilters}
                 className="rounded-xl border-gray-200 font-semibold h-10 px-4"
               >
-                Clear class / section filters
+                Clear filters
               </Button>
             </div>
           )}
