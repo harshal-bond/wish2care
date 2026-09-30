@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { Card, CardHeader, CardTitle, CardContent, Input } from '../components/ui';
+import { Card, CardContent, Input } from '../components/ui';
 import { Search, ArrowRight, UserCheck, Calendar, UserPlus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
