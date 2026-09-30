@@ -15,6 +15,41 @@ export declare const loginSchema: z.ZodObject<{
     email: string;
     password: string;
 }>;
+/**
+ * Students sign in with whichever identifier they have. Email is optional and
+ * non-unique in the roster data, so student_code — which is NOT NULL UNIQUE —
+ * is always a working fallback. One field, resolved server-side, because
+ * asking a 14-year-old to pick which kind of identifier they hold is worse
+ * than just trying both.
+ */
+export declare const studentLoginSchema: z.ZodObject<{
+    identifier: z.ZodString;
+    password: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    password: string;
+    identifier: string;
+}, {
+    password: string;
+    identifier: string;
+}>;
+export declare const studentChangePasswordSchema: z.ZodObject<{
+    currentPassword: z.ZodString;
+    newPassword: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    currentPassword: string;
+    newPassword: string;
+}, {
+    currentPassword: string;
+    newPassword: string;
+}>;
+/** Admin/fieldworker issuing or re-issuing a student's temporary password. */
+export declare const issueStudentCredentialsSchema: z.ZodObject<{
+    password: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    password?: string | undefined;
+}, {
+    password?: string | undefined;
+}>;
 export declare const registerWorkerSchema: z.ZodObject<{
     name: z.ZodString;
     email: z.ZodString;

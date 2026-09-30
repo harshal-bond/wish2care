@@ -57,6 +57,13 @@
       "when": 1785984000000,
       "tag": "0007_student_class_section",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785985000000,
+      "tag": "0008_student_credentials",
+      "breakpoints": true
     }
   ]
 }

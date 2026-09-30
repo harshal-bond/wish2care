@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { healthRecords } from '../db/schema.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, requireWorker, requireOwnStudentId } from '../middleware/auth.js';
 import { healthRecordPartialSchema } from '@wish2care/shared';
 import { eq } from 'drizzle-orm';
 
@@ -9,16 +9,16 @@ export const healthRecordsRoutes = new Hono();
 
 healthRecordsRoutes.use('/*', authMiddleware);
 
-healthRecordsRoutes.get('/:studentId', async (c) => {
-  const studentId = parseInt(c.req.param('studentId'), 10);
+healthRecordsRoutes.get('/:studentId', requireOwnStudentId('studentId'), async (c) => {
+  const studentId = parseInt(c.req.param('studentId') ?? '', 10);
   if (isNaN(studentId)) return c.json({ success: false, error: 'Invalid ID' }, 400);
 
   const [record] = await db.select().from(healthRecords).where(eq(healthRecords.studentId, studentId));
   return c.json({ success: true, data: record || null });
 });
 
-healthRecordsRoutes.put('/:studentId', async (c) => {
-  const studentId = parseInt(c.req.param('studentId'), 10);
+healthRecordsRoutes.put('/:studentId', requireWorker, async (c) => {
+  const studentId = parseInt(c.req.param('studentId') ?? '', 10);
   if (isNaN(studentId)) return c.json({ success: false, error: 'Invalid ID' }, 400);
 
   try {

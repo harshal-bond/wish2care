@@ -36,6 +36,13 @@ export const students = pgTable('students', {
     area: varchar('area', { length: 255 }),
     className: varchar('class_name', { length: 255 }),
     section: varchar('section', { length: 50 }),
+    // App login. Null means this student has no app account yet — most won't,
+    // since accounts are provisioned one at a time by an admin/fieldworker
+    // rather than created in bulk from the roster import.
+    passwordHash: varchar('password_hash', { length: 255 }),
+    // Set when an admin issues a temporary password; the student must replace
+    // it before any other student route will answer them.
+    mustChangePassword: boolean('must_change_password').default(false).notNull(),
     schoolId: integer('school_id')
         .notNull()
         .references(() => schools.id, { onDelete: 'cascade' }),

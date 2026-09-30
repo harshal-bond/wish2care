@@ -1,7 +1,10 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
-import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { authMiddleware, requireAdmin, requireWorker, requireOwnStudentId } from '../middleware/auth.js';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { issueStudentCredentialsSchema } from '@wish2care/shared';
 import { studentSchema, studentMentalHealthSchema, nameMatchesQuery, firstSearchToken, normalizeAppetiteValue, } from '@wish2care/shared';
 import { eq, ilike, or, and, desc, count, sql } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/studentCode.js';
@@ -14,6 +17,19 @@ const studentDemographicsSchema = z.object({
     age: z.coerce.number().min(1).max(100).optional(),
     gender: z.enum(['M', 'F']).optional(),
 });
+/**
+ * Narrows the token to a worker. Every caller sits behind requireWorker, so
+ * this never throws in practice — but it throws rather than returning the
+ * union so that removing a guard surfaces as a 500, not as a fieldworker
+ * silently receiving every school's students.
+ */
+function workerUser(c) {
+    const user = c.get('user');
+    if (user.role === 'student') {
+        throw new Error('worker-only route reached by a student token');
+    }
+    return user;
+}
 function buildListConditions(user, search, schoolId, status, className, section) {
     const conditions = [];
     if (user.role === 'fieldworker' && user.assignedSchoolId) {
@@ -135,8 +151,8 @@ function parsePageLimit(raw) {
         return undefined;
     return Math.min(n, 10_000);
 }
-studentsRoutes.get('/summary', async (c) => {
-    const user = c.get('user');
+studentsRoutes.get('/summary', requireWorker, async (c) => {
+    const user = workerUser(c);
     const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
     const status = c.req.query('status') || undefined;
@@ -161,8 +177,8 @@ studentsRoutes.get('/summary', async (c) => {
         return c.json({ success: false, error: err.message }, 500);
     }
 });
-studentsRoutes.get('/stats', async (c) => {
-    const user = c.get('user');
+studentsRoutes.get('/stats', requireWorker, async (c) => {
+    const user = workerUser(c);
     const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
     const className = c.req.query('className') || undefined;
@@ -203,8 +219,8 @@ studentsRoutes.get('/stats', async (c) => {
         return c.json({ success: false, error: err.message }, 500);
     }
 });
-studentsRoutes.get('/', async (c) => {
-    const user = c.get('user');
+studentsRoutes.get('/', requireWorker, async (c) => {
+    const user = workerUser(c);
     const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
     const className = c.req.query('className') || undefined;
@@ -274,8 +290,8 @@ studentsRoutes.get('/mental-health/all', requireAdmin, async (c) => {
         return c.json({ success: false, error: err.message }, 500);
     }
 });
-studentsRoutes.get('/class-sections', async (c) => {
-    const user = c.get('user');
+studentsRoutes.get('/class-sections', requireWorker, async (c) => {
+    const user = workerUser(c);
     const schoolId = c.req.query('schoolId');
     try {
         const whereClause = buildListConditions(user, undefined, schoolId);
@@ -333,8 +349,8 @@ studentsRoutes.get('/class-sections', async (c) => {
         return c.json({ success: false, error: err.message }, 500);
     }
 });
-studentsRoutes.get('/:id', async (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+studentsRoutes.get('/:id', requireOwnStudentId('id'), async (c) => {
+    const id = parseInt(c.req.param('id') ?? '', 10);
     if (isNaN(id))
         return c.json({ success: false, error: 'Invalid ID' }, 400);
     const rows = await db.select({
@@ -364,8 +380,8 @@ studentsRoutes.get('/:id', async (c) => {
         }
     });
 });
-studentsRoutes.patch('/:id', async (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+studentsRoutes.patch('/:id', requireWorker, async (c) => {
+    const id = parseInt(c.req.param('id') ?? '', 10);
     if (isNaN(id))
         return c.json({ success: false, error: 'Invalid ID' }, 400);
     try {
@@ -391,7 +407,7 @@ studentsRoutes.patch('/:id', async (c) => {
         return c.json({ success: false, error: err.message }, 500);
     }
 });
-studentsRoutes.post('/', async (c) => {
+studentsRoutes.post('/', requireWorker, async (c) => {
     try {
         const body = await c.req.json();
         // Auto generate a school-aware code if missing
@@ -420,7 +436,7 @@ studentsRoutes.post('/', async (c) => {
         return c.json({ success: false, error: err.message }, 500);
     }
 });
-studentsRoutes.get('/:id/mental-health', async (c) => {
+studentsRoutes.get('/:id/mental-health', requireOwnStudentId('id'), async (c) => {
     const studentId = parseInt(c.req.param('id') ?? '', 10);
     if (isNaN(studentId))
         return c.json({ success: false, error: 'Invalid ID' }, 400);
@@ -436,7 +452,7 @@ studentsRoutes.get('/:id/mental-health', async (c) => {
         return c.json({ success: false, error: err.message }, 500);
     }
 });
-studentsRoutes.post('/:id/mental-health', async (c) => {
+studentsRoutes.post('/:id/mental-health', requireWorker, async (c) => {
     const studentId = parseInt(c.req.param('id') ?? '', 10);
     if (isNaN(studentId))
         return c.json({ success: false, error: 'Invalid ID' }, 400);
@@ -456,6 +472,66 @@ studentsRoutes.post('/:id/mental-health', async (c) => {
     }
     catch (err) {
         return c.json({ success: false, error: err.message }, 500);
+    }
+});
+/**
+ * Issue (or re-issue) a student's app password.
+ *
+ * There is no email or SMS provider wired up, so the generated password is
+ * returned in the response exactly once for the admin to hand over in person.
+ * It is never stored in plaintext and cannot be read back afterwards — a lost
+ * password means issuing a new one, not recovering the old.
+ */
+/** Avoids 0/O and 1/l/I, which get misread off a printed slip. */
+const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+function generatePassword(length = 10) {
+    const bytes = crypto.randomBytes(length);
+    let out = '';
+    for (let i = 0; i < length; i++) {
+        out += PASSWORD_ALPHABET[bytes[i] % PASSWORD_ALPHABET.length];
+    }
+    return out;
+}
+studentsRoutes.post('/:id/credentials', requireWorker, async (c) => {
+    const id = parseInt(c.req.param('id') ?? '', 10);
+    if (isNaN(id))
+        return c.json({ success: false, error: 'Invalid ID' }, 400);
+    try {
+        const body = await c.req.json().catch(() => ({}));
+        const result = issueStudentCredentialsSchema.safeParse(body ?? {});
+        if (!result.success) {
+            return c.json({ success: false, error: 'Invalid input', details: result.error.errors }, 400);
+        }
+        const user = workerUser(c);
+        const [student] = await db.select().from(students).where(eq(students.id, id));
+        if (!student)
+            return c.json({ success: false, error: 'Student not found' }, 404);
+        // A fieldworker may only provision students at their own school; an admin
+        // is unrestricted. This is the one place a worker mints a credential, so
+        // it is scoped even though the neighbouring read routes are not yet.
+        if (user.role === 'fieldworker' && user.assignedSchoolId !== null
+            && student.schoolId !== user.assignedSchoolId) {
+            return c.json({ success: false, error: 'Forbidden: student is at another school' }, 403);
+        }
+        const password = result.data.password ?? generatePassword();
+        await db
+            .update(students)
+            .set({ passwordHash: await bcrypt.hash(password, 10), mustChangePassword: true })
+            .where(eq(students.id, id));
+        return c.json({
+            success: true,
+            data: {
+                studentId: student.id,
+                studentCode: student.studentCode,
+                email: student.email,
+                // Shown once. Not recoverable later.
+                password,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Issue student credentials error:', error);
+        return c.json({ success: false, error: 'Internal server error' }, 500);
     }
 });
 //# sourceMappingURL=students.js.map

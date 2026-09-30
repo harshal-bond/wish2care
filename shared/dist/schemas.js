@@ -39,6 +39,26 @@ export const loginSchema = z.object({
     email: z.string().email('Invalid email address'),
     password: z.string().min(1, 'Password is required'),
 });
+/**
+ * Students sign in with whichever identifier they have. Email is optional and
+ * non-unique in the roster data, so student_code — which is NOT NULL UNIQUE —
+ * is always a working fallback. One field, resolved server-side, because
+ * asking a 14-year-old to pick which kind of identifier they hold is worse
+ * than just trying both.
+ */
+export const studentLoginSchema = z.object({
+    identifier: z.string().trim().min(1, 'Enter your email or student code'),
+    password: z.string().min(1, 'Password is required'),
+});
+export const studentChangePasswordSchema = z.object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+});
+/** Admin/fieldworker issuing or re-issuing a student's temporary password. */
+export const issueStudentCredentialsSchema = z.object({
+    // Omit to have the server generate one.
+    password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+});
 export const registerWorkerSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     email: z.string().email('Invalid email address'),
