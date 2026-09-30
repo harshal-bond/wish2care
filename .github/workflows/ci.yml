@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same PR makes the in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` needs the lockfile to match package.json across all workspaces.
+      - run: npm ci
+
+      # shared must build first — backend and frontend both import its dist/.
+      # Note that shared/dist is also committed to the repo; this rebuild is
+      # what catches it drifting out of sync with shared/src.
+      - name: Build shared
+        run: npm run build --workspace=shared
+
+      - name: Build backend
+        run: npm run build --workspace=backend
+
+      # Runs `tsc -b && vite build`. The tsconfig sets noUnusedLocals, so an
+      # orphaned import fails here — which is exactly how PR #33 shipped a
+      # main that Vercel could not build.
+      - name: Build frontend
+        run: npm run build --workspace=frontend
+
+      - name: Fail if committed build output is stale
+        run: |
+          if ! git diff --quiet -- shared/dist backend/dist; then
+            echo "::error::Committed dist/ does not match a fresh build. Run the builds and commit the result, or stop tracking dist/."
+            git diff --stat -- shared/dist backend/dist
+            exit 1
+          fi
+
+# The mobile workspace is deliberately not built here. It does not currently
+# typecheck against main's shared/ (47 errors in HealthRecordForm/fieldsConfig.ts,
+# which references health-record fields that main's shared/src/types.ts does not
+# define), and the mobile track is parked. Re-add a job here once that is fixed
+# rather than landing one that is red from day one:
+#
+#   - run: npx tsc --noEmit        # working-directory: mobile
+#   - run: npm test --workspace=mobile

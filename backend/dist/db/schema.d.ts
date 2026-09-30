@@ -494,6 +494,44 @@ export declare const students: import("drizzle-orm/pg-core").PgTableWithColumns<
         }, {}, {
             length: 255;
         }>;
+        className: import("drizzle-orm/pg-core").PgColumn<{
+            name: "class_name";
+            tableName: "students";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 255;
+        }>;
+        section: import("drizzle-orm/pg-core").PgColumn<{
+            name: "section";
+            tableName: "students";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
         schoolId: import("drizzle-orm/pg-core").PgColumn<{
             name: "school_id";
             tableName: "students";

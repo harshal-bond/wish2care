@@ -14,13 +14,19 @@ const studentDemographicsSchema = z.object({
     age: z.coerce.number().min(1).max(100).optional(),
     gender: z.enum(['M', 'F']).optional(),
 });
-function buildListConditions(user, search, schoolId, status) {
+function buildListConditions(user, search, schoolId, status, className, section) {
     const conditions = [];
     if (user.role === 'fieldworker' && user.assignedSchoolId) {
         conditions.push(eq(students.schoolId, user.assignedSchoolId));
     }
     else if (schoolId) {
         conditions.push(eq(students.schoolId, parseInt(schoolId, 10)));
+    }
+    if (className) {
+        conditions.push(eq(students.className, className));
+    }
+    if (section) {
+        conditions.push(eq(students.section, section));
     }
     if (search) {
         const token = firstSearchToken(search);
@@ -54,6 +60,8 @@ function mapSlimRow(row) {
         studentCode: row.studentCode,
         age: row.age,
         gender: row.gender,
+        className: row.className,
+        section: row.section,
         schoolId: row.schoolId,
         school: row.schoolName ? { id: row.schoolId, name: row.schoolName } : null,
         healthRecord: row.hrUpdatedAt ? { updatedAt: row.hrUpdatedAt } : null,
@@ -73,6 +81,8 @@ async function querySlimStudentList(whereClause, opts) {
         studentCode: students.studentCode,
         age: students.age,
         gender: students.gender,
+        className: students.className,
+        section: students.section,
         schoolId: students.schoolId,
         schoolName: schools.name,
         hrUpdatedAt: healthRecords.updatedAt,
@@ -130,10 +140,12 @@ studentsRoutes.get('/summary', async (c) => {
     const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
     const status = c.req.query('status') || undefined;
+    const className = c.req.query('className') || undefined;
+    const section = c.req.query('section') || undefined;
     const limit = parsePageLimit(c.req.query('limit'));
     const offset = Math.max(parseInt(c.req.query('offset') || '0', 10) || 0, 0);
     try {
-        const whereClause = buildListConditions(user, search, schoolId, status);
+        const whereClause = buildListConditions(user, search, schoolId, status, className, section);
         const results = await querySlimStudentList(whereClause, { limit, offset });
         let mapped = results.map(mapSlimRow);
         mapped = applyTokenSearch(mapped, search);
@@ -151,9 +163,12 @@ studentsRoutes.get('/summary', async (c) => {
 });
 studentsRoutes.get('/stats', async (c) => {
     const user = c.get('user');
+    const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
+    const className = c.req.query('className') || undefined;
+    const section = c.req.query('section') || undefined;
     try {
-        const whereClause = buildListConditions(user, undefined, schoolId);
+        const whereClause = buildListConditions(user, search, schoolId, undefined, className, section);
         const total = await countStudents(whereClause, false);
         let completed = 0;
         let inProgress = 0;
@@ -192,8 +207,10 @@ studentsRoutes.get('/', async (c) => {
     const user = c.get('user');
     const search = c.req.query('search');
     const schoolId = c.req.query('schoolId');
+    const className = c.req.query('className') || undefined;
+    const section = c.req.query('section') || undefined;
     try {
-        const whereClause = buildListConditions(user, search, schoolId);
+        const whereClause = buildListConditions(user, search, schoolId, undefined, className, section);
         const results = await querySlimStudentList(whereClause);
         let mappedResults = results.map(mapSlimRow);
         mappedResults = applyTokenSearch(mappedResults, search);
@@ -252,6 +269,65 @@ studentsRoutes.get('/mental-health/all', requireAdmin, async (c) => {
             mentalHealthAssessments: assessmentsByStudent[row.id] || [],
         }));
         return c.json({ success: true, data: result });
+    }
+    catch (err) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+studentsRoutes.get('/class-sections', async (c) => {
+    const user = c.get('user');
+    const schoolId = c.req.query('schoolId');
+    try {
+        const whereClause = buildListConditions(user, undefined, schoolId);
+        const countRows = await db
+            .select({
+            className: students.className,
+            section: students.section,
+            cnt: count(),
+        })
+            .from(students)
+            .where(whereClause)
+            .groupBy(students.className, students.section);
+        const classNames = [...new Set(countRows.map((r) => r.className).filter(Boolean))].sort();
+        const sections = [...new Set(countRows.map((r) => r.section).filter(Boolean))].sort();
+        const grouped = new Map();
+        const countsByClass = {};
+        const countsByClassSection = {};
+        const countsBySection = {};
+        for (const row of countRows) {
+            const cnt = Number(row.cnt) || 0;
+            if (row.className) {
+                countsByClass[row.className] = (countsByClass[row.className] || 0) + cnt;
+                if (!countsByClassSection[row.className])
+                    countsByClassSection[row.className] = {};
+                if (row.section) {
+                    countsByClassSection[row.className][row.section] =
+                        (countsByClassSection[row.className][row.section] || 0) + cnt;
+                }
+                if (!grouped.has(row.className))
+                    grouped.set(row.className, []);
+                if (row.section && !grouped.get(row.className).includes(row.section)) {
+                    grouped.get(row.className).push(row.section);
+                }
+            }
+            if (row.section) {
+                countsBySection[row.section] = (countsBySection[row.section] || 0) + cnt;
+            }
+        }
+        for (const [key, secs] of grouped) {
+            grouped.set(key, secs.sort());
+        }
+        return c.json({
+            success: true,
+            data: {
+                classNames,
+                sections,
+                sectionsByClass: Object.fromEntries(grouped),
+                countsByClass,
+                countsByClassSection,
+                countsBySection,
+            },
+        });
     }
     catch (err) {
         return c.json({ success: false, error: err.message }, 500);

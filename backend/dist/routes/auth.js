@@ -6,10 +6,43 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { loginSchema } from '@wish2care/shared';
 import { authMiddleware } from '../middleware/auth.js';
+import { JWT_SECRET, JWT_EXPIRES_IN } from '../lib/env.js';
+import { rateLimit } from '../lib/rateLimit.js';
 export const authRoutes = new Hono();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
-authRoutes.post('/login', async (c) => {
+const WINDOW_MS = 15 * 60 * 1000;
+/**
+ * Two limiters, because they defend against different things.
+ *
+ * Per-IP is deliberately loose: a whole school of field workers shares one
+ * NAT address, and locking them all out to stop one attacker is a worse
+ * outcome than the attack. Per-email is the tight one — it caps guesses
+ * against any single account no matter how many addresses they come from.
+ */
+const loginIpLimit = rateLimit({
+    name: 'login-ip',
+    windowMs: WINDOW_MS,
+    max: 50,
+    message: 'Too many login attempts from this network. Try again in a few minutes.',
+});
+const loginEmailLimit = rateLimit({
+    name: 'login-email',
+    windowMs: WINDOW_MS,
+    max: 10,
+    message: 'Too many login attempts for this account. Try again in a few minutes.',
+    keyBy: async (c) => {
+        try {
+            // Hono caches the parsed body, so the handler can still read it.
+            const body = await c.req.json();
+            const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : null;
+            return email || null;
+        }
+        catch {
+            // Unparseable body — let the handler return its own 400.
+            return null;
+        }
+    },
+});
+authRoutes.post('/login', loginIpLimit, loginEmailLimit, async (c) => {
     try {
         const body = await c.req.json();
         const result = loginSchema.safeParse(body);

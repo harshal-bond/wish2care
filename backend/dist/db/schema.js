@@ -34,12 +34,15 @@ export const students = pgTable('students', {
     collegeStream: varchar('college_stream', { length: 255 }),
     localAddress: text('local_address'),
     area: varchar('area', { length: 255 }),
+    className: varchar('class_name', { length: 255 }),
+    section: varchar('section', { length: 50 }),
     schoolId: integer('school_id')
         .notNull()
         .references(() => schools.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => ({
     schoolIdIdx: index('students_school_id_idx').on(t.schoolId),
+    schoolClassSectionIdx: index('students_school_class_section_idx').on(t.schoolId, t.className, t.section),
 }));
 // ── Staff (college employees as screenees — not app login workers) ─────
 export const staff = pgTable('staff', {
