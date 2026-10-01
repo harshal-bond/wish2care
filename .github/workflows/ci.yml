@@ -48,11 +48,29 @@ jobs:
             exit 1
           fi
 
-# The mobile workspace is deliberately not built here. It does not currently
-# typecheck against main's shared/ (47 errors in HealthRecordForm/fieldsConfig.ts,
-# which references health-record fields that main's shared/src/types.ts does not
-# define), and the mobile track is parked. Re-add a job here once that is fixed
-# rather than landing one that is red from day one:
-#
-#   - run: npx tsc --noEmit        # working-directory: mobile
-#   - run: npm test --workspace=mobile
+  mobile:
+    name: Mobile typecheck and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # The mobile suite imports @wish2care/shared, which resolves to dist/.
+      # Building it fresh here is what would have caught the 47 errors that
+      # "Revert Feat/student login" introduced by taking three mobile files
+      # back to the v1 health-record field set while shared stayed on v2.
+      - name: Build shared
+        run: npm run build --workspace=shared
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: mobile
+
+      - name: Test
+        run: npm test --workspace=mobile
