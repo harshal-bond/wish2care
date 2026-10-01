@@ -430,10 +430,28 @@ studentsRoutes.get('/:id', requireOwnStudentId('id'), async (c) => {
       }
     : null;
 
+  // Never let the hash or the temporary password reach a client: `...row.student`
+  // would otherwise spread both, including to the student's own mobile app.
+  const { passwordHash, tempPassword, ...safeStudent } = row.student;
+  const user = c.get('user');
+  const isWorker = user.role !== 'student';
+
   return c.json({ 
     success: true, 
     data: {
-      ...row.student,
+      ...safeStudent,
+      // Workers need to know whether an app login exists, whether the student
+      // has activated it, and - until they do - what to read out to them.
+      ...(isWorker
+        ? {
+            credentials: {
+              hasAccount: passwordHash !== null,
+              activated: passwordHash !== null && !row.student.mustChangePassword,
+              // Cleared the moment the student picks their own password.
+              tempPassword: row.student.mustChangePassword ? tempPassword : null,
+            },
+          }
+        : {}),
       school: row.school || null,
       healthRecord: hr,
     }
@@ -593,7 +611,12 @@ studentsRoutes.post('/:id/credentials', requireWorker, async (c) => {
 
     await db
       .update(students)
-      .set({ passwordHash: await bcrypt.hash(password, 10), mustChangePassword: true })
+      .set({
+        passwordHash: await bcrypt.hash(password, 10),
+        mustChangePassword: true,
+        // Readable by workers until the student sets their own.
+        tempPassword: password,
+      })
       .where(eq(students.id, id));
 
     return c.json({
@@ -602,8 +625,8 @@ studentsRoutes.post('/:id/credentials', requireWorker, async (c) => {
         studentId: student.id,
         studentCode: student.studentCode,
         email: student.email,
-        // Shown once. Not recoverable later.
         password,
+        credentials: { hasAccount: true, activated: false, tempPassword: password },
       },
     });
   } catch (error: any) {

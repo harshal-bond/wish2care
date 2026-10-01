@@ -1,0 +1,12 @@
+-- Lets a fieldworker re-read the issued temporary password until the student
+-- replaces it, so a student who loses their slip can be told it again without
+-- invalidating the one already handed out.
+--
+-- This is a plaintext secret at rest, deliberately and narrowly:
+--   * it is only ever a TEMPORARY password, never one the student chose;
+--   * it is cleared the moment the student sets their own (see
+--     /auth/student/change-password), so it exists only in the window between
+--     issue and first sign-in;
+--   * it grants access to that one student's own record and nothing else.
+-- Never reuse this column for a password the student picked.
+ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "temp_password" varchar(100);

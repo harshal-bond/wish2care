@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { Card, Button } from '../components/ui';
-import { ChevronLeft, Loader2, FileText, Smile, User, Heart, Activity, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Loader2, FileText, Smile, User, Heart, Activity, CheckCircle2, AlertTriangle, Smartphone, KeyRound, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatGender, formatAge, isRecordComplete, isCaseSubmitted } from '@wish2care/shared';
 import { useAuth } from '../hooks/useAuth';
@@ -22,6 +22,13 @@ export function StudentProfilePage() {
   const { data: mhData, isLoading: isLoadingMH } = useQuery({
     queryKey: ['student', studentId, 'mental-health'],
     queryFn: () => fetchApi(`/students/${studentId}/mental-health`)
+  });
+
+  // The app login a student uses on their phone. The server returns the
+  // temporary password only until the student replaces it with their own.
+  const issueCredentials = useMutation({
+    mutationFn: () => fetchApi(`/students/${studentId}/credentials`, { method: 'POST', body: '{}' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['student', studentId] }),
   });
 
   const submitCase = useMutation({
@@ -48,6 +55,10 @@ export function StudentProfilePage() {
 
   const student = studentData?.data;
   const healthRecord = student?.healthRecord;
+  // Only workers get this block from the API; students never do.
+  const credentials = student?.credentials as
+    | { hasAccount: boolean; activated: boolean; tempPassword: string | null }
+    | undefined;
   const mhAssessments = mhData?.data || [];
 
   if (!student) {
@@ -146,6 +157,122 @@ export function StudentProfilePage() {
 
       {submitCase.isError && (
         <p className="text-sm font-semibold text-red-600">{String(submitCase.error)}</p>
+      )}
+
+      {/* Mobile app login — visible to admins and fieldworkers */}
+      {credentials && (
+        <Card className="border border-gray-100 shadow-sm rounded-2xl p-6">
+          <div className="flex items-center gap-3 border-b border-gray-50 pb-4 mb-4">
+            <div className="w-10 h-10 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-gray-900">Mobile App Login</h2>
+              <p className="text-sm text-gray-500">
+                Credentials this student uses to sign in to the Wish2Care app
+              </p>
+            </div>
+            {credentials.activated && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Active
+              </span>
+            )}
+          </div>
+
+          {!credentials.hasAccount && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                This student cannot sign in to the app yet. Generate a login and hand the password
+                to them &mdash; they will be asked to choose their own the first time they sign in.
+              </p>
+              <Button onClick={() => issueCredentials.mutate()} disabled={issueCredentials.isPending}>
+                {issueCredentials.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
+                ) : (
+                  <><KeyRound className="w-4 h-4 mr-2" /> Generate App Login</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {credentials.hasAccount && !credentials.activated && credentials.tempPassword && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-3">
+                  Give these to the student
+                </p>
+                <dl className="space-y-2">
+                  <div className="flex items-baseline gap-3">
+                    <dt className="w-24 shrink-0 text-xs font-medium text-amber-800">Login</dt>
+                    <dd className="font-mono text-sm font-semibold text-gray-900 break-all">
+                      {student.email || student.studentCode}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <dt className="w-24 shrink-0 text-xs font-medium text-amber-800">Password</dt>
+                    <dd className="font-mono text-base font-bold tracking-wider text-gray-900">
+                      {credentials.tempPassword}
+                    </dd>
+                  </div>
+                </dl>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigator.clipboard?.writeText(
+                      `Login: ${student.email || student.studentCode}
+Password: ${credentials.tempPassword}`
+                    )
+                  }
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800 hover:text-amber-900"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copy
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">
+                The student has not signed in yet. This password stays visible here until they
+                choose their own, after which it can no longer be shown.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => issueCredentials.mutate()}
+                disabled={issueCredentials.isPending}
+              >
+                {issueCredentials.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
+                ) : (
+                  <><KeyRound className="w-4 h-4 mr-2" /> Generate a new password</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {credentials.activated && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                This student has signed in and chosen their own password, so it cannot be shown
+                here. If they have forgotten it, generate a new one &mdash; that replaces the old
+                password immediately.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => issueCredentials.mutate()}
+                disabled={issueCredentials.isPending}
+              >
+                {issueCredentials.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Resetting...</>
+                ) : (
+                  <><KeyRound className="w-4 h-4 mr-2" /> Reset password</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {issueCredentials.isError && (
+            <p className="mt-3 text-sm font-semibold text-red-600">
+              {String(issueCredentials.error)}
+            </p>
+          )}
+        </Card>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
