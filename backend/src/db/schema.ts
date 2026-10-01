@@ -46,6 +46,10 @@ export const students = pgTable('students', {
   // Set when an admin issues a temporary password; the student must replace
   // it before any other student route will answer them.
   mustChangePassword: boolean('must_change_password').default(false).notNull(),
+  // The issued temporary password in plaintext, so a fieldworker can read it
+  // back to a student who lost their slip. Cleared on change-password, never
+  // sent to the student, and never holds a password the student chose.
+  tempPassword: varchar('temp_password', { length: 100 }),
   schoolId: integer('school_id')
     .notNull()
     .references(() => schools.id, { onDelete: 'cascade' }),

@@ -202,7 +202,12 @@ authRoutes.post('/student/change-password', authMiddleware, requireStudent, asyn
         }
         const [updated] = await db
             .update(students)
-            .set({ passwordHash: await bcrypt.hash(newPassword, 10), mustChangePassword: false })
+            .set({
+            passwordHash: await bcrypt.hash(newPassword, 10),
+            mustChangePassword: false,
+            // The worker-readable copy exists only until this moment.
+            tempPassword: null,
+        })
             .where(eq(students.id, user.id))
             .returning();
         return c.json({ success: true, data: { student: publicStudent(updated) } });

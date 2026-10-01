@@ -568,6 +568,25 @@ export declare const students: import("drizzle-orm/pg-core").PgTableWithColumns<
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        tempPassword: import("drizzle-orm/pg-core").PgColumn<{
+            name: "temp_password";
+            tableName: "students";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 100;
+        }>;
         schoolId: import("drizzle-orm/pg-core").PgColumn<{
             name: "school_id";
             tableName: "students";
