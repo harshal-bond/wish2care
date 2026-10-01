@@ -123,20 +123,6 @@ export function StudentDetailScreen() {
         style={styles.heroCard}
         imageStyle={styles.heroCardImage}
       >
-        <View style={styles.heroHeader}>
-          <View style={styles.userBadge}>
-            <Text style={styles.userBadgeText}>WC</Text>
-          </View>
-          <Pressable
-            style={styles.helpButton}
-            onPress={() => navigation.navigate('ComingSoon', { title: 'Help', message: 'Help & support are coming soon.' })}
-            accessibilityRole="button"
-            accessibilityLabel="Help"
-          >
-            <Feather name="help-circle" size={20} color={colors.white} />
-          </Pressable>
-        </View>
-
         <View style={styles.heroContent}>
           <Text style={styles.heroTitle}>Get Your Health Score</Text>
           <Text style={styles.heroSub}>Understand your health, risks and next steps.</Text>
@@ -243,34 +229,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: 20,
     aspectRatio: 374 / 380,
-    justifyContent: 'space-between',
+    // The panel sits at the bottom of the artwork. This was space-between
+    // while a badge row shared the card; with that gone, flex-end is what
+    // keeps the panel down rather than letting it ride to the top.
+    justifyContent: 'flex-end',
   },
   heroCardImage: {
     borderRadius: 24,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  userBadge: {
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  userBadgeText: {
-    fontFamily: inter.semiBold,
-    fontSize: 14,
-    color: colors.eminence,
-  },
-  helpButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: colors.heroBadgeBg,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   heroContent: {
     backgroundColor: colors.heroPanel,

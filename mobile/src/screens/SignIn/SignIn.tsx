@@ -59,7 +59,7 @@ export function SignInScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Logo size={40} />
+        <Logo height={88} />
 
         <View style={styles.form}>
           <Text style={styles.heading}>Sign in</Text>
