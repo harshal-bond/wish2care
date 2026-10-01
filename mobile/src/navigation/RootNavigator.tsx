@@ -13,20 +13,32 @@ import { DoctorAppointmentScreen } from '../screens/DoctorAppointment/DoctorAppo
 import { MentalHealthScreen } from '../screens/MentalHealth/MentalHealth';
 import { ProfileScreen } from '../screens/Profile/Profile';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { CircleBackButton } from '../components/CircleBackButton';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../theme/colors';
+import { hankenGrotesk } from '../theme/typography';
 import type { RootStackParamList } from './types';
 
+// Matches the Figma "MobileHeader" — white background, dark left-aligned
+// title, circular outline back button (see CircleBackButton).
 const brandedHeader = {
   headerShown: true,
-  headerStyle: { backgroundColor: colors.eminence },
-  headerTintColor: colors.white,
+  headerStyle: { backgroundColor: colors.white },
+  headerShadowVisible: false,
+  headerTintColor: colors.figmaTextPrimary,
+  headerTitleAlign: 'left',
+  headerTitleStyle: {
+    fontFamily: hankenGrotesk.semiBold,
+    fontSize: 20,
+    color: colors.figmaTextPrimary,
+  },
+  headerLeft: (props: { canGoBack?: boolean }) => <CircleBackButton canGoBack={props.canGoBack} />,
 } as const;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -59,23 +71,10 @@ export function RootNavigator() {
                 name="StudentDetail"
                 component={StudentDetailScreen}
                 initialParams={{ studentId: user.id }}
-                options={{
-                  ...brandedHeader,
-                  title: 'My Health',
-                  // Students never reach Home, which is where the worker's
-                  // Log Out button lives — without this there is no way off a
-                  // shared device.
-                  headerRight: () => (
-                    <Pressable
-                      onPress={logout}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Log out"
-                    >
-                      <Feather name="log-out" size={20} color={colors.white} />
-                    </Pressable>
-                  ),
-                }}
+                // The Figma Home frame draws its own hero and nav bar, so this
+                // screen carries no native header. Log Out lives on Profile,
+                // which the FloatingNavBar reaches.
+                options={{ headerShown: false }}
               />
               <Stack.Screen
                 name="StudentReport"
@@ -124,7 +123,7 @@ export function RootNavigator() {
                       accessibilityRole="button"
                       accessibilityLabel="Edit health record"
                     >
-                      <Feather name="edit-2" size={20} color={colors.white} />
+                      <Feather name="edit-2" size={20} color={colors.figmaTextPrimary} />
                     </Pressable>
                   ),
                 })}
