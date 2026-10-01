@@ -11,7 +11,10 @@ import { fonts } from '../../theme/typography';
 import { ProgressRing } from './ProgressRing';
 import type { RootStackParamList } from '../../navigation/types';
 
-type StudentWithRecord = Student & { healthRecord: HealthRecord | null };
+type StudentWithRecord = Student & {
+  healthRecord: HealthRecord | null;
+  school: { id: number; name: string } | null;
+};
 type StudentDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'StudentDetail'>;
 
 function timeGreeting() {
@@ -82,7 +85,12 @@ export function StudentDetailScreen() {
       <View>
         <Text style={styles.greeting}>{timeGreeting()},</Text>
         <Text style={styles.name}>{student.name}</Text>
-        {schoolName ? <Text style={styles.school}>{schoolName}</Text> : null}
+        {/* Workers arrive from the roster with schoolName already in hand;
+            a student arrives on their own id with no params, so fall back to
+            what the API returned. */}
+        {schoolName || student.school?.name ? (
+          <Text style={styles.school}>{schoolName ?? student.school?.name}</Text>
+        ) : null}
       </View>
 
       <View style={styles.scoreCard}>

@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "db:backfill-class-section": "tsx scripts/backfill-class-section.ts"
+    "db:backfill-class-section": "tsx scripts/backfill-class-section.ts",
+    "student:credentials": "tsx scripts/issue-student-credentials.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
