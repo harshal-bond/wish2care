@@ -18,36 +18,20 @@ function renderSignIn() {
   return render(<SignInScreen />, { wrapper });
 }
 
+const identifier = () => screen.getByPlaceholderText('you@example.com or STU-0001');
+const password = () => screen.getByPlaceholderText('••••••••');
+
 describe('SignInScreen', () => {
   beforeEach(() => {
     mockedFetchApi.mockReset();
     mockedFetchApi.mockResolvedValue({ success: false });
   });
 
-  it('defaults to staff mode and posts to the worker endpoint', async () => {
+  it('signs in with a student code', async () => {
     renderSignIn();
 
-    fireEvent.changeText(screen.getByPlaceholderText('you@wish2care.org'), 'w@wish2care.org');
-    fireEvent.changeText(screen.getByPlaceholderText('••••••••'), 'secret123');
-    fireEvent.press(screen.getByLabelText('Sign In'));
-
-    await waitFor(() =>
-      expect(mockedFetchApi).toHaveBeenCalledWith('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'w@wish2care.org', password: 'secret123' }),
-      })
-    );
-  });
-
-  it('posts the identifier to the student endpoint in student mode', async () => {
-    renderSignIn();
-
-    fireEvent.press(screen.getByLabelText('Sign in as student'));
-    fireEvent.changeText(
-      screen.getByPlaceholderText('you@example.com or STU-0001'),
-      'STU-0001'
-    );
-    fireEvent.changeText(screen.getByPlaceholderText('••••••••'), 'TempPass12');
+    fireEvent.changeText(identifier(), 'STU-0001');
+    fireEvent.changeText(password(), 'TempPass12');
     fireEvent.press(screen.getByLabelText('Sign In'));
 
     await waitFor(() =>
@@ -58,18 +42,14 @@ describe('SignInScreen', () => {
     );
   });
 
-  it('accepts an email as the student identifier', async () => {
+  it('signs in with an email, trimmed', async () => {
     renderSignIn();
 
-    fireEvent.press(screen.getByLabelText('Sign in as student'));
-    fireEvent.changeText(
-      screen.getByPlaceholderText('you@example.com or STU-0001'),
-      '  asha@example.com  '
-    );
-    fireEvent.changeText(screen.getByPlaceholderText('••••••••'), 'TempPass12');
+    // A tapped-in email often picks up a trailing space.
+    fireEvent.changeText(identifier(), '  asha@example.com  ');
+    fireEvent.changeText(password(), 'TempPass12');
     fireEvent.press(screen.getByLabelText('Sign In'));
 
-    // Trimmed, since a tapped-in email often picks up a trailing space.
     await waitFor(() =>
       expect(mockedFetchApi).toHaveBeenCalledWith('/auth/student/login', {
         method: 'POST',
@@ -78,21 +58,30 @@ describe('SignInScreen', () => {
     );
   });
 
-  it('clears typed credentials when switching mode', () => {
+  it('offers no staff sign-in', () => {
     renderSignIn();
 
-    fireEvent.changeText(screen.getByPlaceholderText('you@wish2care.org'), 'w@wish2care.org');
-    fireEvent.press(screen.getByLabelText('Sign in as student'));
+    expect(screen.queryByLabelText('Sign in as staff')).toBeNull();
+    expect(screen.queryByText('Staff')).toBeNull();
+  });
 
-    expect(screen.getByPlaceholderText('you@example.com or STU-0001').props.value).toBe('');
+  it('never calls the worker login endpoint', async () => {
+    renderSignIn();
+
+    fireEvent.changeText(identifier(), 'worker@wish2care.org');
+    fireEvent.changeText(password(), 'secret123');
+    fireEvent.press(screen.getByLabelText('Sign In'));
+
+    await waitFor(() => expect(mockedFetchApi).toHaveBeenCalled());
+    expect(mockedFetchApi).not.toHaveBeenCalledWith('/auth/login', expect.anything());
   });
 
   it('surfaces the API error message', async () => {
     mockedFetchApi.mockRejectedValue(new Error('Invalid credentials'));
     renderSignIn();
 
-    fireEvent.changeText(screen.getByPlaceholderText('you@wish2care.org'), 'w@wish2care.org');
-    fireEvent.changeText(screen.getByPlaceholderText('••••••••'), 'wrong');
+    fireEvent.changeText(identifier(), 'STU-0001');
+    fireEvent.changeText(password(), 'wrong');
     fireEvent.press(screen.getByLabelText('Sign In'));
 
     expect(await screen.findByText('Invalid credentials')).toBeTruthy();

@@ -49,9 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         const res = await fetchApi('/auth/me');
-        // /auth/me returns { worker } or { student } depending on the token.
-        if (res?.success && (res.data.worker || res.data.student)) {
-          setUser(res.data.worker ?? res.data.student);
+        // /auth/me answers { worker } or { student } depending on the token.
+        // This app is student-only, so a worker token - which a device can
+        // still hold from before that was decided - is discarded rather than
+        // restored into a UI that no longer exists for it.
+        if (res?.success && res.data.student) {
+          setUser(res.data.student);
         } else {
           await AsyncStorage.removeItem(TOKEN_KEY);
         }

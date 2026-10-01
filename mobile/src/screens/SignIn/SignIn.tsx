@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Logo } from '../../components/Logo';
 import { TextField } from '../../components/TextField';
 import { Button } from '../../components/Button';
@@ -8,44 +8,25 @@ import { fetchApi } from '../../lib/api';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 
-type Mode = 'worker' | 'student';
-
 export function SignInScreen() {
   const { login } = useAuth();
-  const [mode, setMode] = useState<Mode>('worker');
-  // Students sign in with either an email or a student code, so the field is
-  // one identifier rather than a typed email input.
+  // One field: students may hold an email, or only a student code. The server
+  // resolves whichever matches, so the app never asks them which they have.
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const switchMode = (next: Mode) => {
-    if (next === mode) return;
-    setMode(next);
-    // Carrying a half-typed worker email into the student form is just noise.
-    setIdentifier('');
-    setPassword('');
-    setError(null);
-  };
-
   const onSubmit = async () => {
     setError(null);
     setSubmitting(true);
     try {
-      const res =
-        mode === 'worker'
-          ? await fetchApi('/auth/login', {
-              method: 'POST',
-              body: JSON.stringify({ email: identifier.trim(), password }),
-            })
-          : await fetchApi('/auth/student/login', {
-              method: 'POST',
-              body: JSON.stringify({ identifier: identifier.trim(), password }),
-            });
-
+      const res = await fetchApi('/auth/student/login', {
+        method: 'POST',
+        body: JSON.stringify({ identifier: identifier.trim(), password }),
+      });
       if (res?.success) {
-        await login(res.data.token, mode === 'worker' ? res.data.worker : res.data.student);
+        await login(res.data.token, res.data.student);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in. Please verify your credentials.');
@@ -53,8 +34,6 @@ export function SignInScreen() {
       setSubmitting(false);
     }
   };
-
-  const isStudent = mode === 'student';
 
   return (
     <KeyboardAvoidingView
@@ -73,33 +52,12 @@ export function SignInScreen() {
         <View style={styles.form}>
           <Text style={styles.heading}>Sign in</Text>
 
-          <View style={styles.toggle} accessibilityRole="tablist">
-            {(['worker', 'student'] as const).map((value) => {
-              const active = mode === value;
-              return (
-                <Pressable
-                  key={value}
-                  onPress={() => switchMode(value)}
-                  style={[styles.toggleOption, active && styles.toggleOptionActive]}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={value === 'worker' ? 'Sign in as staff' : 'Sign in as student'}
-                >
-                  <Text style={[styles.toggleLabel, active && styles.toggleLabelActive]}>
-                    {value === 'worker' ? 'Staff' : 'Student'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
           <TextField
-            label={isStudent ? 'Email or student code' : 'Email'}
+            label="Email or student code"
             value={identifier}
             onChangeText={setIdentifier}
-            keyboardType={isStudent ? 'default' : 'email-address'}
             autoCorrect={false}
-            placeholder={isStudent ? 'you@example.com or STU-0001' : 'you@wish2care.org'}
+            placeholder="you@example.com or STU-0001"
           />
           <TextField
             label="Password"
@@ -118,12 +76,10 @@ export function SignInScreen() {
             disabled={!identifier || !password}
           />
 
-          {isStudent ? (
-            <Text style={styles.help}>
-              Your school issues your password. If you've forgotten it, ask your health worker to
-              reset it for you.
-            </Text>
-          ) : null}
+          <Text style={styles.help}>
+            Your school issues your password. If you've forgotten it, ask your health worker to
+            reset it for you.
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -152,30 +108,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: colors.eminence,
     textAlign: 'center',
-  },
-  toggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.raisinBlack + '10',
-    borderRadius: 12,
-    padding: 4,
-    gap: 4,
-  },
-  toggleOption: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 9,
-    alignItems: 'center',
-  },
-  toggleOptionActive: {
-    backgroundColor: colors.white,
-  },
-  toggleLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.raisinBlack + 'A0',
-  },
-  toggleLabelActive: {
-    color: colors.eminence,
   },
   error: {
     fontFamily: fonts.regular,
