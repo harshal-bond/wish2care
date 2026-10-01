@@ -48,7 +48,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "start:usb": "node scripts/start-usb.mjs"
   },
   "private": true
 }

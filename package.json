@@ -16,7 +16,8 @@
     "build": "npm run build --workspace=shared && npm run build --workspace=backend && npm run build --workspace=frontend",
     "db:generate": "npm run db:generate --workspace=backend",
     "db:migrate": "npm run db:migrate --workspace=backend",
-    "db:seed": "npm run db:seed --workspace=backend"
+    "db:seed": "npm run db:seed --workspace=backend",
+    "dev:mobile:usb": "npm run start:usb --workspace=mobile"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
