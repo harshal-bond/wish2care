@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@expo-google-fonts/hanken-grotesk": "^0.4.3",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/lora": "^0.4.2",
+    "@expo-google-fonts/roboto": "^0.4.3",
     "@expo/metro-runtime": "~55.0.12",
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^5.4.0",

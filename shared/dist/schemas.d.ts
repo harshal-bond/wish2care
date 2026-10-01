@@ -50,23 +50,36 @@ export declare const issueStudentCredentialsSchema: z.ZodObject<{
 }, {
     password?: string | undefined;
 }>;
+export declare const bookAppointmentSchema: z.ZodObject<{
+    date: z.ZodString;
+    startTime: z.ZodString;
+    email: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    date: string;
+    email: string;
+    startTime: string;
+}, {
+    date: string;
+    email: string;
+    startTime: string;
+}>;
 export declare const registerWorkerSchema: z.ZodObject<{
     name: z.ZodString;
     email: z.ZodString;
     password: z.ZodString;
-    role: z.ZodDefault<z.ZodEnum<["admin", "fieldworker"]>>;
+    role: z.ZodDefault<z.ZodEnum<["admin", "fieldworker", "student"]>>;
     assignedSchoolId: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     email: string;
     password: string;
     name: string;
-    role: "admin" | "fieldworker";
+    role: "admin" | "fieldworker" | "student";
     assignedSchoolId?: number | null | undefined;
 }, {
     email: string;
     password: string;
     name: string;
-    role?: "admin" | "fieldworker" | undefined;
+    role?: "admin" | "fieldworker" | "student" | undefined;
     assignedSchoolId?: number | null | undefined;
 }>;
 export declare const schoolSchema: z.ZodObject<{

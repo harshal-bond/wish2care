@@ -5,7 +5,7 @@ import { Button } from '../../components/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchApi } from '../../lib/api';
 import { colors } from '../../theme/colors';
-import { fonts } from '../../theme/typography';
+import { hankenGrotesk } from '../../theme/typography';
 
 /** Mirrors studentChangePasswordSchema's min(8) so the server never has to say no. */
 const MIN_LENGTH = 8;
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    backgroundColor: colors.alabaster,
+    backgroundColor: colors.white,
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 40,
@@ -135,27 +135,27 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heading: {
-    fontFamily: fonts.bold,
-    fontSize: 22,
-    color: colors.eminence,
+    fontFamily: hankenGrotesk.semiBold,
+    fontSize: 24,
+    color: colors.figmaTextPrimary,
     textAlign: 'center',
   },
   subheading: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.raisinBlack + 'A0',
+    fontFamily: hankenGrotesk.regular,
+    fontSize: 14,
+    color: colors.figmaTextSecondary,
     textAlign: 'center',
     marginBottom: 8,
   },
   error: {
-    fontFamily: fonts.regular,
+    fontFamily: hankenGrotesk.regular,
     fontSize: 13,
     color: '#B3261E',
   },
   signOut: {
-    fontFamily: fonts.medium,
+    fontFamily: hankenGrotesk.medium,
     fontSize: 13,
-    color: colors.eminence,
+    color: colors.teal,
     textAlign: 'center',
     paddingVertical: 8,
   },

@@ -10,7 +10,7 @@ export declare const APPETITE_OPTIONS: readonly ["Good", "Poor"];
 export type Appetite = (typeof APPETITE_OPTIONS)[number];
 export declare const GENDER_OPTIONS: readonly ["M", "F"];
 export type Gender = (typeof GENDER_OPTIONS)[number];
-export declare const ROLES: readonly ["admin", "fieldworker"];
+export declare const ROLES: readonly ["admin", "fieldworker", "student"];
 export type Role = (typeof ROLES)[number];
 export declare const BREAKFAST_OPTIONS: readonly ["Always", "Sometimes", "Never"];
 export declare const FRUIT_INTAKE_OPTIONS: readonly ["Daily", "3-5 per week", "Rarely"];
@@ -369,4 +369,6 @@ export declare const SAFE_GRADES: readonly ["Platinum", "Gold", "Silver", "Bronz
 export type SafeGrade = (typeof SAFE_GRADES)[number];
 export declare const ACCREDITATION_STATUSES: readonly ["Accredited", "Provisionally Accredited", "Reassessment Required", "Not Accredited"];
 export type AccreditationStatus = (typeof ACCREDITATION_STATUSES)[number];
+export declare const APPOINTMENT_STATUS: readonly ["booked", "cancelled"];
+export type AppointmentStatus = (typeof APPOINTMENT_STATUS)[number];
 //# sourceMappingURL=constants.d.ts.map

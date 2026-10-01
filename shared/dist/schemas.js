@@ -59,6 +59,14 @@ export const issueStudentCredentialsSchema = z.object({
     // Omit to have the server generate one.
     password: z.string().min(8, 'Password must be at least 8 characters').optional(),
 });
+// ── Doctor appointment booking ─────────────────────────────────────────
+export const bookAppointmentSchema = z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:mm format'),
+    // Where the Google Meet invite is sent. Collected per booking rather than
+    // read from students.email, which is optional and often missing.
+    email: z.string().email('Enter a valid email address'),
+});
 export const registerWorkerSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     email: z.string().email('Invalid email address'),

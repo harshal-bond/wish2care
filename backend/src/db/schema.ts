@@ -281,3 +281,58 @@ export const schoolAuditChecklistsRelations = relations(schoolAuditChecklists, (
     references: [schools.id],
   }),
 }));
+
+// ── Doctor Appointments ────────────────────────────────────────────────
+
+export const doctors = pgTable('doctors', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  specialization: varchar('specialization', { length: 255 }),
+  // Added to the Meet invite alongside the student when present.
+  email: varchar('email', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/** Recurring weekly availability; actual slots are derived from this. */
+export const doctorAvailability = pgTable('doctor_availability', {
+  id: serial('id').primaryKey(),
+  doctorId: integer('doctor_id')
+    .notNull()
+    .references(() => doctors.id, { onDelete: 'cascade' }),
+  dayOfWeek: integer('day_of_week').notNull(), // 0 = Sunday
+  startTime: varchar('start_time', { length: 5 }).notNull(), // HH:mm, IST
+  endTime: varchar('end_time', { length: 5 }).notNull(),
+  slotMinutes: integer('slot_minutes').default(30).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const doctorAppointments = pgTable('doctor_appointments', {
+  id: serial('id').primaryKey(),
+  doctorId: integer('doctor_id')
+    .notNull()
+    .references(() => doctors.id, { onDelete: 'cascade' }),
+  studentId: integer('student_id')
+    .notNull()
+    .references(() => students.id, { onDelete: 'cascade' }),
+  appointmentDate: varchar('appointment_date', { length: 10 }).notNull(), // YYYY-MM-DD, IST
+  startTime: varchar('start_time', { length: 5 }).notNull(),
+  endTime: varchar('end_time', { length: 5 }).notNull(),
+  status: varchar('status', { length: 20 }).default('booked').notNull(),
+  // Collected at booking time rather than read from students.email, which is
+  // optional in the roster data.
+  attendeeEmail: varchar('attendee_email', { length: 255 }).notNull(),
+  meetLink: text('meet_link'),
+  googleEventId: varchar('google_event_id', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  cancelledAt: timestamp('cancelled_at'),
+});
+
+export const doctorsRelations = relations(doctors, ({ many }) => ({
+  availability: many(doctorAvailability),
+  appointments: many(doctorAppointments),
+}));
+
+export const doctorAppointmentsRelations = relations(doctorAppointments, ({ one }) => ({
+  doctor: one(doctors, { fields: [doctorAppointments.doctorId], references: [doctors.id] }),
+  student: one(students, { fields: [doctorAppointments.studentId], references: [students.id] }),
+}));

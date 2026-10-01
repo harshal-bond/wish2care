@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AppointmentStatus } from './constants.js';
 import type {
   loginSchema,
   registerWorkerSchema,
@@ -10,6 +11,7 @@ import type {
   exportRequestSchema,
   schoolSchema,
   staffSchema,
+  bookAppointmentSchema,
   staffAssessmentPartialSchema,
 } from './schemas.js';
 
@@ -389,4 +391,48 @@ export function buildStudentListStatus(
     mentalAssessmentComplete,
     isComplete: isCaseSubmitted(record, mentalAssessmentComplete),
   };
+}
+
+// ── Doctor Appointments ────────────────────────────────────────────────
+export type BookAppointmentInput = z.infer<typeof bookAppointmentSchema>;
+
+export interface Doctor {
+  id: number;
+  name: string;
+  specialization: string | null;
+  email: string | null;
+  createdAt: string | Date;
+}
+
+/** One bookable window, derived from doctor_availability minus booked rows. */
+export interface DoctorSlot {
+  startTime: string;
+  endTime: string;
+  available: boolean;
+}
+
+export interface Appointment {
+  id: number;
+  doctorId: number;
+  doctorName?: string;
+  studentId: number;
+  appointmentDate: string;
+  startTime: string;
+  endTime: string;
+  status: AppointmentStatus;
+  attendeeEmail: string;
+  meetLink: string | null;
+  googleEventId: string | null;
+  createdAt: string | Date;
+  cancelledAt: string | Date | null;
+}
+
+/** One completed mental-health awareness questionnaire. */
+export interface MentalHealthAssessment {
+  id: number;
+  studentId: number;
+  date: string;
+  responses: Record<string, number>;
+  totalScore: number | null;
+  createdAt: string | Date;
 }

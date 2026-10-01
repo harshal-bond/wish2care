@@ -9,6 +9,9 @@ import { StudentReportScreen } from '../screens/StudentReport/StudentReport';
 import { HealthRecordFormScreen } from '../screens/HealthRecordForm/HealthRecordForm';
 import { ComingSoonScreen } from '../screens/ComingSoon/ComingSoon';
 import { ChangePasswordScreen } from '../screens/ChangePassword/ChangePassword';
+import { DoctorAppointmentScreen } from '../screens/DoctorAppointment/DoctorAppointment';
+import { MentalHealthScreen } from '../screens/MentalHealth/MentalHealth';
+import { ProfileScreen } from '../screens/Profile/Profile';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../theme/colors';
@@ -78,6 +81,21 @@ export function RootNavigator() {
                 name="StudentReport"
                 component={StudentReportScreen}
                 options={{ ...brandedHeader, title: 'Report' }}
+              />
+              <Stack.Screen
+                name="DoctorAppointment"
+                component={DoctorAppointmentScreen}
+                options={{ ...brandedHeader, title: 'Appointments' }}
+              />
+              <Stack.Screen
+                name="MentalHealth"
+                component={MentalHealthScreen}
+                options={{ ...brandedHeader, title: 'Mental Health' }}
+              />
+              <Stack.Screen
+                name="Profile"
+                component={ProfileScreen}
+                options={{ ...brandedHeader, title: 'Profile' }}
               />
               <Stack.Screen
                 name="ComingSoon"

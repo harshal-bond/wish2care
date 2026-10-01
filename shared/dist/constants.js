@@ -9,7 +9,7 @@ export const APPETITE_OPTIONS = ['Good', 'Poor'];
 // ── Gender ─────────────────────────────────────────────────────────────
 export const GENDER_OPTIONS = ['M', 'F'];
 // ── Roles ──────────────────────────────────────────────────────────────
-export const ROLES = ['admin', 'fieldworker'];
+export const ROLES = ['admin', 'fieldworker', 'student'];
 // ── Diet Quality options ───────────────────────────────────────────────
 export const BREAKFAST_OPTIONS = ['Always', 'Sometimes', 'Never'];
 export const FRUIT_INTAKE_OPTIONS = ['Daily', '3-5 per week', 'Rarely'];
@@ -249,4 +249,6 @@ export const ACCREDITATION_STATUSES = [
     'Reassessment Required',
     'Not Accredited',
 ];
+// ── Doctor Appointments ────────────────────────────────────────────────
+export const APPOINTMENT_STATUS = ['booked', 'cancelled'];
 //# sourceMappingURL=constants.js.map
