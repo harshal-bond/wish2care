@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { compress } from "hono/compress";
 import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 import { sql } from "drizzle-orm";
 import { authRoutes } from "./routes/auth.js";
 import { studentsRoutes } from "./routes/students.js";
@@ -10,13 +11,26 @@ import { schoolsRoutes } from "./routes/schools.js";
 import { exportRoutes } from "./routes/export.js";
 import { healthRecordsRoutes } from "./routes/healthRecords.js";
 import { staffRoutes } from "./routes/staff.js";
+import { doctorsRoutes } from "./routes/doctors.js";
+import { appointmentsRoutes } from "./routes/appointments.js";
 import { db } from "./db/index.js";
 import { corsOriginHeader, buildAllowedOrigins } from "./lib/cors.js";
 const app = new Hono();
 app.use("*", logger());
 app.use("*", compress());
+/**
+ * This service only ever returns JSON, so the defaults are safe as-is: there
+ * is no HTML for a CSP to constrain, and nothing here is meant to be framed
+ * or sniffed. HSTS is enabled because Railway terminates TLS in front of us.
+ */
+app.use("*", secureHeaders({
+    strictTransportSecurity: "max-age=31536000; includeSubDomains",
+    xFrameOptions: "DENY",
+    xContentTypeOptions: "nosniff",
+    referrerPolicy: "no-referrer",
+}));
 console.log("[CORS] Allowed origins:", buildAllowedOrigins().join(", "));
-console.log("[CORS] Also allowing *.vercel.app and localhost dev ports");
+console.log("[CORS] Also allowing *.vercel.app, app.wish2care.in, and localhost dev ports");
 app.use("*", cors({
     origin: (origin) => {
         const allowed = corsOriginHeader(origin);
@@ -65,6 +79,8 @@ app.route("/api/students", studentsRoutes);
 app.route("/api/staff", staffRoutes);
 app.route("/api/health-records", healthRecordsRoutes);
 app.route("/api/export", exportRoutes);
+app.route("/api/doctors", doctorsRoutes);
+app.route("/api/appointments", appointmentsRoutes);
 app.onError((err, c) => {
     console.error(err);
     return c.json({

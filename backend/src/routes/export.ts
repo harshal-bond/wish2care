@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { students, healthRecords, schools, studentMentalHealthAssessments } from '../db/schema.js';
-import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { authMiddleware, requireWorker, requireAdmin } from '../middleware/auth.js';
 import { eq, inArray, desc } from 'drizzle-orm';
 import {
   EXCEL_COLUMN_MAP,
@@ -19,6 +19,8 @@ import fs from 'fs';
 export const exportRoutes = new Hono();
 
 exportRoutes.use('/*', authMiddleware);
+// Bulk export of every screening record is worker-only.
+exportRoutes.use('/*', requireWorker);
 
 function genderLabel(g: string | null | undefined): string {
   if (g === 'M') return 'Male';

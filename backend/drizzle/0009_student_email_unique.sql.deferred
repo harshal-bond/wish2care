@@ -1,0 +1,28 @@
+-- DEFERRED — not in _journal.json, so `db:migrate` will NOT run this.
+--
+-- Rename to 0009_student_email_unique.sql and add a journal entry ONLY after
+-- the roster data is clean. Until then, two students sharing one email (very
+-- common: siblings on a parent's address) can both be issued accounts, and
+-- login-by-email would be ambiguous. The login route already refuses to
+-- authenticate when an email matches more than one student, so this index is
+-- a hardening step, not a correctness prerequisite.
+--
+-- Check first:
+--
+--   SELECT count(*) AS total,
+--          count(*) FILTER (WHERE email IS NOT NULL AND email <> '')     AS has_email,
+--          count(*) FILTER (WHERE email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$') AS valid_format
+--   FROM students;
+--
+--   SELECT lower(trim(email)) AS email, count(*), array_agg(student_code)
+--   FROM students WHERE email IS NOT NULL AND email <> ''
+--   GROUP BY 1 HAVING count(*) > 1 ORDER BY 2 DESC;
+--
+-- Partial so students with no email don't collide on NULL; functional on
+-- lower() so Rahul@x.com and rahul@x.com can't become two accounts.
+
+DROP INDEX IF EXISTS "students_email_lower_idx";--> statement-breakpoint
+
+CREATE UNIQUE INDEX "students_email_lower_unique"
+  ON "students" (lower("email"))
+  WHERE "email" IS NOT NULL AND "email" <> '';

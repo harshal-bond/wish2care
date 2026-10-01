@@ -1,12 +1,15 @@
 import { Hono } from 'hono';
 import { db } from '../db/index.js';
 import { staff, staffAssessments, schools } from '../db/schema.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, requireWorker } from '../middleware/auth.js';
 import { staffSchema, staffAssessmentPartialSchema } from '@wish2care/shared';
 import { eq, ilike, or, and, count } from 'drizzle-orm';
 import { generateStudentCode } from '../lib/studentCode.js';
 export const staffRoutes = new Hono();
 staffRoutes.use('/*', authMiddleware);
+// Staff records and their health assessments are worker-only. Without
+// this, a student token could list and edit staff across every school.
+staffRoutes.use('/*', requireWorker);
 staffRoutes.get('/', async (c) => {
     const user = c.get('user');
     const search = c.req.query('search');

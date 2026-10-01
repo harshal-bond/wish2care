@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { AppState, AppStateStatus, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { AuthProvider } from './src/hooks/useAuth';
@@ -34,6 +35,10 @@ export default function App() {
 
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      {/* Every screen is on a white ground now that the headers follow the
+          Figma design, so the status bar needs dark icons - the platform
+          default renders them light and they disappear. */}
+      <StatusBar style="dark" />
       <PersistQueryClientProvider
         client={queryClient}
         persistOptions={persistOptions}

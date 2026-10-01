@@ -15,6 +15,16 @@ const mockWorker = {
   name: 'Field Worker',
 };
 
+const mockStudent = {
+  id: 7,
+  name: 'Asha Kumari',
+  role: 'student' as const,
+  studentCode: 'STU-0001',
+  email: 'asha@example.com',
+  schoolId: 1,
+  mustChangePassword: true,
+};
+
 function renderUseAuth() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const clearSpy = jest.spyOn(queryClient, 'clear');
@@ -43,13 +53,24 @@ describe('useAuth', () => {
 
   it('restores the session when a stored token is still valid', async () => {
     await AsyncStorage.setItem('token', 'valid-token');
+    mockedFetchApi.mockResolvedValue({ success: true, data: { student: mockStudent } });
+
+    const { result } = renderUseAuth();
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.user).toEqual(mockStudent);
+    expect(mockedFetchApi).toHaveBeenCalledWith('/auth/me');
+  });
+
+  it('discards a stored worker token - this app is student-only', async () => {
+    await AsyncStorage.setItem('token', 'leftover-worker-token');
     mockedFetchApi.mockResolvedValue({ success: true, data: { worker: mockWorker } });
 
     const { result } = renderUseAuth();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.user).toEqual(mockWorker);
-    expect(mockedFetchApi).toHaveBeenCalledWith('/auth/me');
+    expect(result.current.user).toBeNull();
+    expect(await AsyncStorage.getItem('token')).toBeNull();
   });
 
   it('clears the stored token when /auth/me fails', async () => {
@@ -89,5 +110,33 @@ describe('useAuth', () => {
     expect(result.current.user).toBeNull();
     expect(await AsyncStorage.getItem('token')).toBeNull();
     expect(clearSpy).toHaveBeenCalled();
+  });
+
+  it('updateUser clears mustChangePassword after a student changes it', async () => {
+    const { result } = renderUseAuth();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.login('student-token', mockStudent);
+    });
+    act(() => {
+      result.current.updateUser({ mustChangePassword: false });
+    });
+
+    expect(result.current.user).toEqual({ ...mockStudent, mustChangePassword: false });
+  });
+
+  it('updateUser is inert for a worker session', async () => {
+    const { result } = renderUseAuth();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.login('token', mockWorker);
+    });
+    act(() => {
+      result.current.updateUser({ mustChangePassword: false });
+    });
+
+    expect(result.current.user).toEqual(mockWorker);
   });
 });

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same PR makes the in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` needs the lockfile to match package.json across all workspaces.
+      - run: npm ci
+
+      # shared must build first — backend and frontend both import its dist/.
+      # Note that shared/dist is also committed to the repo; this rebuild is
+      # what catches it drifting out of sync with shared/src.
+      - name: Build shared
+        run: npm run build --workspace=shared
+
+      - name: Build backend
+        run: npm run build --workspace=backend
+
+      # Runs `tsc -b && vite build`. The tsconfig sets noUnusedLocals, so an
+      # orphaned import fails here — which is exactly how PR #33 shipped a
+      # main that Vercel could not build.
+      - name: Build frontend
+        run: npm run build --workspace=frontend
+
+      - name: Fail if committed build output is stale
+        run: |
+          if ! git diff --quiet -- shared/dist backend/dist; then
+            echo "::error::Committed dist/ does not match a fresh build. Run the builds and commit the result, or stop tracking dist/."
+            git diff --stat -- shared/dist backend/dist
+            exit 1
+          fi
+
+  mobile:
+    name: Mobile typecheck and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # The mobile suite imports @wish2care/shared, which resolves to dist/.
+      # Building it fresh here is what would have caught the 47 errors that
+      # "Revert Feat/student login" introduced by taking three mobile files
+      # back to the v1 health-record field set while shared stayed on v2.
+      - name: Build shared
+        run: npm run build --workspace=shared
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: mobile
+
+      - name: Test
+        run: npm test --workspace=mobile

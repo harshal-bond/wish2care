@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { loginSchema, registerWorkerSchema, studentSchema, studentUploadRowSchema, studentSchoolUploadRowSchema, healthRecordSchema, healthRecordPartialSchema, exportRequestSchema, schoolSchema, staffSchema, staffAssessmentPartialSchema } from './schemas.js';
+import type { AppointmentStatus } from './constants.js';
+import type { loginSchema, registerWorkerSchema, studentSchema, studentUploadRowSchema, studentSchoolUploadRowSchema, healthRecordSchema, healthRecordPartialSchema, exportRequestSchema, schoolSchema, staffSchema, bookAppointmentSchema, staffAssessmentPartialSchema } from './schemas.js';
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterWorkerInput = z.infer<typeof registerWorkerSchema>;
 export type StudentInput = z.infer<typeof studentSchema>;
@@ -206,5 +207,43 @@ export interface StudentListStatus {
     isComplete: boolean;
 }
 export declare function buildStudentListStatus(record: Partial<HealthRecord> | null | undefined, mentalAssessmentComplete: boolean): StudentListStatus;
+export type BookAppointmentInput = z.infer<typeof bookAppointmentSchema>;
+export interface Doctor {
+    id: number;
+    name: string;
+    specialization: string | null;
+    email: string | null;
+    createdAt: string | Date;
+}
+/** One bookable window, derived from doctor_availability minus booked rows. */
+export interface DoctorSlot {
+    startTime: string;
+    endTime: string;
+    available: boolean;
+}
+export interface Appointment {
+    id: number;
+    doctorId: number;
+    doctorName?: string;
+    studentId: number;
+    appointmentDate: string;
+    startTime: string;
+    endTime: string;
+    status: AppointmentStatus;
+    attendeeEmail: string;
+    meetLink: string | null;
+    googleEventId: string | null;
+    createdAt: string | Date;
+    cancelledAt: string | Date | null;
+}
+/** One completed mental-health awareness questionnaire. */
+export interface MentalHealthAssessment {
+    id: number;
+    studentId: number;
+    date: string;
+    responses: Record<string, number>;
+    totalScore: number | null;
+    createdAt: string | Date;
+}
 export {};
 //# sourceMappingURL=types.d.ts.map

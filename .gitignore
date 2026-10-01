@@ -4,3 +4,5 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Local-only override of mobile/.env (see mobile/.env for the production value)
+mobile/.env.usb-backup

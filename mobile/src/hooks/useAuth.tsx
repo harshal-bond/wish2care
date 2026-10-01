@@ -4,18 +4,33 @@ import { useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '../lib/api';
 import { persister } from '../lib/queryClient';
 
-interface User {
+export interface WorkerUser {
   id: number;
   email: string;
   role: 'admin' | 'fieldworker';
   name: string;
 }
 
+export interface StudentUser {
+  id: number;
+  name: string;
+  role: 'student';
+  studentCode: string;
+  email: string | null;
+  schoolId: number;
+  /** Set when an admin issued a temporary password. Gates the whole app. */
+  mustChangePassword: boolean;
+}
+
+export type User = WorkerUser | StudentUser;
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
+  /** Applied after a student changes their password, to clear the gate. */
+  updateUser: (patch: Partial<StudentUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,8 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         const res = await fetchApi('/auth/me');
-        if (res?.success) {
-          setUser(res.data.worker);
+        // /auth/me answers { worker } or { student } depending on the token.
+        // This app is student-only, so a worker token - which a device can
+        // still hold from before that was decided - is discarded rather than
+        // restored into a UI that no longer exists for it.
+        if (res?.success && res.data.student) {
+          setUser(res.data.student);
         } else {
           await AsyncStorage.removeItem(TOKEN_KEY);
         }
@@ -59,7 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  const updateUser = (patch: Partial<StudentUser>) => {
+    setUser((current) =>
+      current && current.role === 'student' ? { ...current, ...patch } : current
+    );
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

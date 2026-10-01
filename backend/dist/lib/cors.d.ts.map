@@ -1,0 +1,1 @@
+{"version":3,"file":"cors.d.ts","sourceRoot":"","sources":["../../src/lib/cors.ts"],"names":[],"mappings":"AAAA,2DAA2D;AAC3D,wBAAgB,eAAe,CAAC,MAAM,EAAE,MAAM,GAAG,MAAM,CAEtD;AAeD,wBAAgB,mBAAmB,IAAI,MAAM,EAAE,CAQ9C;AAED,wBAAgB,eAAe,CAAC,MAAM,EAAE,MAAM,GAAG,SAAS,GAAG,OAAO,CAcnE;AAED,wBAAgB,gBAAgB,CAAC,MAAM,EAAE,MAAM,GAAG,SAAS,GAAG,MAAM,GAAG,IAAI,CAG1E"}

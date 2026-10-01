@@ -18,7 +18,7 @@ export const GENDER_OPTIONS = ['M', 'F'] as const;
 export type Gender = (typeof GENDER_OPTIONS)[number];
 
 // ── Roles ──────────────────────────────────────────────────────────────
-export const ROLES = ['admin', 'fieldworker'] as const;
+export const ROLES = ['admin', 'fieldworker', 'student'] as const;
 export type Role = (typeof ROLES)[number];
 
 // ── Diet Quality options ───────────────────────────────────────────────
@@ -305,3 +305,7 @@ export const ACCREDITATION_STATUSES = [
   'Not Accredited',
 ] as const;
 export type AccreditationStatus = (typeof ACCREDITATION_STATUSES)[number];
+
+// ── Doctor Appointments ────────────────────────────────────────────────
+export const APPOINTMENT_STATUS = ['booked', 'cancelled'] as const;
+export type AppointmentStatus = (typeof APPOINTMENT_STATUS)[number];
